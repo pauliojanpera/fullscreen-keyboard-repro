@@ -37,9 +37,10 @@ reported for the **omnibox / top controls**, but here the omnibox is absent (ful
 <https://pauliojanpera.github.io/fullscreen-keyboard-repro/>
 
 Minimal, self-contained page (single HTML file, source:
-<https://github.com/pauliojanpera/fullscreen-keyboard-repro>). The root canvas is painted magenta so
-any uncovered strip is unmistakable; a one-line readout shows `window.innerHeight` sitting frozen at
-the stale value until the next touch. A **Workaround** checkbox on the page toggles the mitigation
+<https://github.com/pauliojanpera/fullscreen-keyboard-repro>). In fullscreen — the repro condition —
+the root canvas turns dark magenta, so any uncovered strip is unmistakable (while windowed it matches
+the bottom bar and an ordinary strip blends into the UI); a one-line readout shows `window.innerHeight`
+sitting frozen at the stale value until the next touch. A **Workaround** checkbox on the page toggles the mitigation
 described below.
 
 ## Steps to reproduce

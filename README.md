@@ -119,9 +119,13 @@ part not separately reported**, and it is exactly what fullscreen isolates.
 The page is deliberately minimal — just enough to show the bug and one working around of it:
 
 - A plain `<div>` container sized to `100dvh` with an opaque dark background. The **root canvas is
-  painted magenta** so any uncovered strip is unmissable.
+  state-coded**: while windowed it matches the bottom bar, so an ordinary uncovered strip blends into
+  the UI; in fullscreen — the bug's condition — it turns **dark magenta**. So if you ever see that
+  colour, you have met the bug. (Dark, not `#ff00ff`, so the OS navbar's white button engravings stay
+  legible against it rather than washing out.)
 - A fixed bottom bar with a text input (the thing that must ride above the keyboard).
-- **Enter fullscreen** button (the trigger; no install needed).
+- **Enter / Exit fullscreen** button (the trigger; its label reflects the action it will perform; no
+  install needed).
 - A **Workaround** checkbox — leaves fullscreen when the field is focused and re-enters it on `blur`
   (authorised by the dismiss gesture's transient activation), so fullscreen and the keyboard never
   overlap and the strip never appears.
