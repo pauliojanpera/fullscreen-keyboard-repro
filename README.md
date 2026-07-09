@@ -82,6 +82,41 @@ coincides with `fullscreen + 100dvh` — which is exactly why the strip stays aw
 actual trigger (fullscreen and the keyboard being up at the same time) instead of papering over the
 symptom, so it is a genuine mitigation.
 
+## The same bug, a different moving part: omnibox vs. navbar
+
+The "viewport stays stale until you tap" behaviour is already known — but every public write-up pins
+it on the **omnibox / top controls**: Chrome's own URL bar and toolbar that hide and show as you
+scroll. In an ordinary tab those are the only browser chrome that moves the layout viewport, so that
+is where the bug was found and named. The reported cause is the dynamic URL bar — `window.innerHeight`
+reports a height that no longer matches what is on screen (typically the URL-bar-hidden "full" value)
+and **does not correct until a tap forces a reflow** that re-reads the top-controls state
+([w3tutorials write-up][w3t], Chromium [*Top Controls change layout viewport height*][tc],
+[Next.js #63724][next]). The trigger is the omnibox; the update is interaction-gated.
+
+This repro reproduces the *same* failure with the omnibox taken out of the picture. **Fullscreen has
+no top controls** — no URL bar, no toolbar, nothing at the top edge left to move. Yet dismissing the
+keyboard still produces a stale shrink of **exactly one navigation-bar height**, and it still refuses
+to recover until the next touch. The only chrome that can account for a navbar-height shrink here is
+the **bottom OS navigation bar** returning in "phantom".
+
+| Aspect | Known reports (ordinary tab) | This repro (fullscreen) |
+|---|---|---|
+| Which chrome moves | Omnibox / top controls (top edge) | OS navigation bar (bottom edge) |
+| Its state | Hides/shows on scroll | Hidden by fullscreen; returns as a phantom |
+| `innerHeight` / `dvh` stale until next touch | Yes | Yes |
+| Surface symptom | Misplaced fixed elements, wrong `100vh` | `100dvh` container leaves a canvas strip at the bottom |
+| Escape | `visualViewport` API / `dvh` instead of `vh` | `100lvh`, or never overlap fullscreen + keyboard |
+
+So this is **not a second, unrelated bug**: it is the same interaction-gated viewport update, but the
+moving part has shifted from the omnibox to the navbar. Fullscreen is what makes that provable — by
+removing the omnibox it rules out the usual suspect and leaves the navigation bar as an independent
+trigger of the same class of bug. The omnibox variant is well documented; the **navbar framing is the
+part not separately reported**, and it is exactly what fullscreen isolates.
+
+[w3t]: https://www.w3tutorials.net/blog/why-is-window-innerheight-incorrect-until-i-tap-chrome-android/
+[tc]: https://issues.chromium.org/issues/40391415
+[next]: https://github.com/vercel/next.js/discussions/63724
+
 ## What's in the page
 
 - A plain `<div>` container sized to `100dvh` with an opaque dark background — the app container. The
