@@ -43,8 +43,12 @@
     <h1>Fullscreen keyboard → navbar strip</h1>
     <p>
       On Android Chromium: tap <b>Enter fullscreen</b>, tap the field, then dismiss the keyboard with a
-      quick tap up here. A magenta strip appears at the bottom and <b>stays</b> until you touch again —
+      quick tap up here. A strip appears at the bottom and <b>stays</b> until you touch again —
       the reported viewport is stale by a navigation-bar height, and <code>100dvh</code> follows it.
+    </p>
+    <p>
+      The canvas behind the app matches this bar while windowed, so a normal strip blends in. In
+      fullscreen it turns <b>dark magenta</b>: if you ever see that colour, you have met the bug.
     </p>
     <button id="fs">Enter fullscreen</button>
     <label>
