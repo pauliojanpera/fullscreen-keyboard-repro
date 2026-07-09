@@ -31,12 +31,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure Pages
-        # enablement: true turns Pages on automatically the first time (needs the workflow's
-        # pages: write permission). If it fails, enable Pages once in
-        # Settings → Pages → Build and deployment → Source: GitHub Actions.
+        # One-time manual setup: Settings → Pages → Build and deployment → Source: GitHub Actions.
+        # (The default GITHUB_TOKEN can't enable Pages automatically, so this step only reads the
+        # existing configuration.)
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Stage static site
         run: |

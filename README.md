@@ -16,8 +16,14 @@ plain `<div>` in the light DOM instead of a `<test-app>` custom element with sha
 out custom elements / shadow DOM as a factor in the bug.
 
 The site is deployed by the `Deploy to GitHub Pages` workflow (`.github/workflows/deploy-pages.yml`)
-on every push to `master`. First-time setup: in **Settings → Pages → Build and deployment**, set the
-**Source** to **GitHub Actions** (the workflow also attempts to enable this automatically).
+on every push to `master` (and to the deploy branch). **One-time setup** by the repo owner:
+
+1. In **Settings → Pages → Build and deployment**, set the **Source** to **GitHub Actions**.
+2. Because this repository is **private**, GitHub Pages requires a paid plan (GitHub Pro / Team /
+   Enterprise). On the Free plan, make the repository **public** first.
+
+After that, re-run the workflow (Actions tab → *Deploy to GitHub Pages* → *Run workflow*) or push a
+commit, and the URLs above go live.
 
 ## Symptom
 
