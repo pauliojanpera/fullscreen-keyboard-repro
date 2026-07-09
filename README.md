@@ -72,14 +72,13 @@ overlapping:
 
 1. Focusing the field **exits fullscreen**, so the keyboard opens in an ordinary (non-fullscreen)
    context where there is no phantom-navbar shrink to leak the canvas.
-2. Tapping outside to dismiss **re-requests fullscreen** ~200 ms later — the tap's transient
-   activation is still valid inside that short `setTimeout` window, so `requestFullscreen` is allowed.
+2. Tapping outside to dismiss **re-requests fullscreen** ~200 ms later (the dismiss tap is the user
+   gesture that authorises it).
 
 So fullscreen is only ever active while the keyboard is closed, and the phantom-navbar shrink never
 coincides with `fullscreen + 100dvh` — which is exactly why the strip stays away. This targets the
 actual trigger (fullscreen and the keyboard being up at the same time) instead of papering over the
-symptom, so it is a genuine mitigation. It does require both toggles on, and it relies on the tap's
-transient-activation window still being open after the delay.
+symptom, so it is a genuine mitigation.
 
 ## What's in the page
 
