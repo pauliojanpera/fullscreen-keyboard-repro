@@ -126,6 +126,19 @@
           <button data-act="anchor">Toggle bottom / top-anchored</button>
         </div>
         <div class="row">
+          <button data-act="refs">Re-FS on outside-tap: OFF</button>
+          delay
+          <input
+            data-act="refsdelay"
+            type="number"
+            min="0"
+            max="2000"
+            value="250"
+            style="width: 4.5em; font: inherit; padding: 0.4rem; border-radius: 8px; border: 1px solid #3a4658; background: #0f151d; color: #fff"
+          />
+          ms
+        </div>
+        <div class="row">
           iw&nbsp;
           <select data-act="iw">
             <option value="">(unset → resizes-visual)</option>
@@ -157,13 +170,33 @@
           // baseline on blur. (Trivial on purpose — the point is the CSS anchoring, not this math.)
           let baseH = window.innerHeight;
           let cached = Math.round(window.innerHeight * 0.45);
+          this.focused = false;
+          this.reFs = false; // experiment: re-assert fullscreen on outside-tap
+          this.reFsDelay = 250;
           this.input.addEventListener('focus', () => {
+            this.focused = true;
             baseH = Math.max(baseH, window.innerHeight);
             root.style.setProperty('--kbtop', baseH - cached + 'px');
           });
           this.input.addEventListener('blur', () => {
+            this.focused = false;
             root.style.setProperty('--kbtop', baseH + 'px');
           });
+
+          // Experiment: when the field is focused and the user taps OUTSIDE it (dismissing the
+          // keyboard), re-request fullscreen after a delay. The tap's transient activation is still
+          // valid inside a short setTimeout (~5 s window), so requestFullscreen is allowed there.
+          document.addEventListener(
+            'pointerdown',
+            (e) => {
+              if (!this.reFs || !this.focused) return;
+              if (e.composedPath().includes(this.input)) return; // tapped the field itself
+              setTimeout(() => {
+                (root.requestFullscreen || root.webkitRequestFullscreen)?.call(root)?.catch?.(() => {});
+              }, this.reFsDelay);
+            },
+            true
+          );
           if (vk) {
             vk.addEventListener('geometrychange', () => {
               const r = Math.round(vk.boundingRect.height);
@@ -183,6 +216,7 @@
             btn.dvh.textContent = 'Container height: ' + (this.lvh ? '100lvh' : '100dvh');
             btn.anchor.textContent =
               'Bar anchor: ' + (this.classList.contains('top-anchored') ? 'top (--kbtop)' : 'bottom:0');
+            btn.refs.textContent = 'Re-FS on outside-tap: ' + (this.reFs ? 'ON' : 'OFF');
           };
 
           sr.addEventListener('click', (e) => {
@@ -201,12 +235,17 @@
               this.style.minHeight = this.lvh ? '100lvh' : '100dvh';
             } else if (act === 'anchor') {
               this.classList.toggle('top-anchored');
+            } else if (act === 'refs') {
+              this.reFs = !this.reFs;
             }
             syncLabels();
           });
           document.addEventListener('fullscreenchange', syncLabels);
           document.addEventListener('webkitfullscreenchange', syncLabels);
           syncLabels();
+          sr.addEventListener('input', (e) => {
+            if (e.target?.dataset?.act === 'refsdelay') this.reFsDelay = +e.target.value || 0;
+          });
           sr.addEventListener('change', (e) => {
             if (e.target?.dataset?.act === 'iw') {
               const base = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
