@@ -173,20 +173,42 @@
             });
           }
 
+          // Reflect the current state in each toggle's own label.
+          const btn = {};
+          sr.querySelectorAll('button[data-act]').forEach((b) => (btn[b.dataset.act] = b));
+          const syncLabels = () => {
+            btn.fs.textContent = document.fullscreenElement
+              ? 'Fullscreen (API): ON — tap to exit'
+              : 'Fullscreen (API): OFF — tap to enter';
+            btn.vk.textContent =
+              'VK overlaysContent: ' + (vk ? (vk.overlaysContent ? 'ON' : 'OFF') : 'no API');
+            btn.dvh.textContent = 'Container height: ' + (this.lvh ? '100lvh' : '100dvh');
+            btn.anchor.textContent =
+              'Bar anchor: ' + (this.classList.contains('top-anchored') ? 'top (--kbtop)' : 'bottom:0');
+          };
+
           sr.addEventListener('click', (e) => {
             const act = e.target?.dataset?.act;
             if (!act) return;
             if (act === 'fs') {
-              (root.requestFullscreen || root.webkitRequestFullscreen)?.call(root)?.catch?.(() => {});
+              if (document.fullscreenElement) {
+                (document.exitFullscreen || document.webkitExitFullscreen)?.call(document)?.catch?.(() => {});
+              } else {
+                (root.requestFullscreen || root.webkitRequestFullscreen)?.call(root)?.catch?.(() => {});
+              }
             } else if (act === 'vk' && vk) {
               vk.overlaysContent = !vk.overlaysContent;
             } else if (act === 'dvh') {
-              this.dvh = !this.dvh;
-              this.style.minHeight = this.dvh ? '100lvh' : '100dvh';
+              this.lvh = !this.lvh;
+              this.style.minHeight = this.lvh ? '100lvh' : '100dvh';
             } else if (act === 'anchor') {
               this.classList.toggle('top-anchored');
             }
+            syncLabels();
           });
+          document.addEventListener('fullscreenchange', syncLabels);
+          document.addEventListener('webkitfullscreenchange', syncLabels);
+          syncLabels();
           sr.addEventListener('change', (e) => {
             if (e.target?.dataset?.act === 'iw') {
               const base = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
