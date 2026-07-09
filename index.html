@@ -171,7 +171,10 @@
         const tpl = document.getElementById('app-tpl');
         const sr = this.attachShadow({ mode: 'open' });
         sr.appendChild(tpl.content.cloneNode(true));
-        this.input = sr.querySelector('input');
+        // The bar's text field — NOT `querySelector('input')`, which would grab the refsdelay
+        // number field in the card (it comes first in DOM order) and bind focus/blur to the wrong
+        // input, so "Exit FS on focus" would never fire on the field that opens the keyboard.
+        this.input = sr.querySelector('.bar input');
 
         // Drive --kbtop when top-anchored: lift by a cached inset on focus, drop to the immersive
         // baseline on blur. (Trivial on purpose — the point is the CSS anchoring, not this math.)
