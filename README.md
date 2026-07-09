@@ -16,6 +16,13 @@ The underlying viewport update is **interaction-gated, not time-based**: `innerH
 `visualViewport`, and `VirtualKeyboard.boundingRect` sit frozen at the stale value for as long as you
 wait, then snap only on the next real touch. So no amount of waiting lets the page "catch up".
 
+### `interactive-widget` mode matters
+
+The magenta strip appears in **`resizes-visual`** and **`overlays-content`**, but **not** in
+**`resizes-content`**. In `resizes-content` the keyboard resizes the layout viewport, so the `100dvh`
+container is laid out against the actually-available area and never exposes the canvas; in the other
+two the layout viewport stays "full" and the transient phantom-navbar shrink is what leaks the strip.
+
 Two smaller, related quirks the HUD also exposes:
 
 - In `VirtualKeyboard` overlay mode, `geometrychange` fires **one interaction late** — on open it
