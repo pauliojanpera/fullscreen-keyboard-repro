@@ -1,7 +1,8 @@
 # Fullscreen keyboard / phantom-navbar repro
 
-A minimal, self-contained reproduction of a Chromium-on-Android bug that shows up in an installed,
-`display: fullscreen` PWA whose top-level container is sized to the **dynamic viewport** (`100dvh`).
+A minimal, self-contained reproduction of a Chromium-on-Android bug that shows up in **fullscreen**
+(entered via the Fullscreen API) when the top-level container is sized to the **dynamic viewport**
+(`100dvh`). Installing as a PWA is **not** required.
 
 ## Symptom
 
@@ -29,34 +30,32 @@ Two smaller, related quirks the HUD also exposes:
 - A fixed bottom bar with a text input (the thing that must ride above the keyboard).
 - A live **HUD** (top of screen) sampling every frame: `innerHeight`, `visualViewport`,
   `VirtualKeyboard.boundingRect`, `--kbtop`, display-mode, fullscreen element.
-- Buttons to isolate variables:
-  - **Enter fullscreen (API)** — element-fullscreen, to compare against manifest fullscreen.
-  - **Toggle VK overlaysContent** — flip the VirtualKeyboard overlay mode.
-  - **Toggle 100dvh / 100lvh** — switch the container between the dynamic and the **large** viewport.
+- Toggle buttons that show their current state and isolate variables:
+  - **Fullscreen (API)** — enter/exit element-fullscreen (the trigger; no install needed).
+  - **VK overlaysContent** — flip the VirtualKeyboard overlay mode.
+  - **Container height 100dvh / 100lvh** — switch between the dynamic and the **large** viewport.
     On `100lvh` the container always covers the physical screen, so the magenta strip cannot appear —
     this is the "remove the hole" fix.
-  - **Toggle bottom / top-anchored** — position the bar with `bottom: 0` vs
+  - **Bar anchor bottom:0 / top (--kbtop)** — position the bar with `bottom: 0` vs
     `bottom: calc(100% - var(--kbtop))` (top-referenced, immune to the bottom drifting).
   - **iw** — set `interactive-widget` (`resizes-visual` / `resizes-content` / `overlays-content`).
 
 ## How to run
 
-It must be served over **HTTPS** (or `http://localhost`) and installed to the home screen to hit the
-`display: fullscreen` path — a normal browser tab will not reproduce it.
+Serve over **HTTPS** or `http://localhost` (the Fullscreen API and VirtualKeyboard API need a secure
+context), open on an Android phone in a Chromium browser, then:
 
 ```sh
 # any static server works, e.g.:
 python3 -m http.server 8080
 ```
 
-Then serve it over HTTPS (a tunnel such as your host of choice, or a self-signed localhost cert),
-open it on an Android phone in Chrome, **Add to Home screen**, launch from the icon, and:
-
-1. Focus the input → keyboard opens.
-2. Dismiss with a **short tap** on the card → watch for the magenta strip and the frozen HUD numbers.
-3. Compare a **long-press** dismiss (usually clean).
-4. Toggle **100lvh** and repeat — the strip should be gone.
+1. Tap **Enter fullscreen (API)**.
+2. Focus the input → keyboard opens.
+3. Dismiss with a **short tap** on the card → watch for the magenta strip and the frozen HUD numbers.
+4. Compare a **long-press** dismiss (usually clean).
+5. Toggle **100lvh** and repeat — the strip should be gone.
 
 ## Environment where observed
 
-- Android, Chromium-based browser, installed PWA (`display: fullscreen`), 3-button navigation bar.
+- Android, Chromium-based browser, fullscreen, 3-button navigation bar.
