@@ -42,6 +42,11 @@
        offset from the STABLE top edge (the layout viewport's top does not lag the way the bottom
        does). --bar-top is recomputed in JS from clientHeight minus the keyboard+navbar occlusion. */
     #bar.top { bottom: auto; top: var(--bar-top, 0px); transform: none; }
+    /* Third strategy: same top-from-stable-edge idea, but referenced to 100lvh — the STATIC large
+       viewport height, which cannot lag the way a live clientHeight read might. Pure CSS, no live
+       height read at all; only --bar-h (the bar's own height) is measured in JS. */
+    #bar.top-lvh { bottom: auto; transform: none;
+                   top: calc(100lvh - env(keyboard-inset-height, 0px) - var(--navbar, 0px) - var(--bar-h, 3rem)); }
     #bar input { box-sizing: border-box; width: 100%; font: inherit; padding: 0.6rem; border-radius: 8px; border: 1px solid #3a4658; background: #0f151d; color: #fff; }
     #phone { box-sizing: border-box; width: 100%; margin-top: 0.5rem; font: inherit; padding: 0.6rem; border-radius: 8px; border: 1px solid #3a4658; background: #0f151d; color: #fff; }
     #cal { display: block; margin-top: 0.4rem; font: 12px/1.4 ui-monospace, monospace; color: #d7ffd7; }
@@ -72,12 +77,14 @@
       </select>
     </label>
     <label>
-      <b>Anchor</b>: how the bar's position is expressed, so the two strategies can be compared live.
+      <b>Anchor</b>: how the bar's position is expressed, so the strategies can be compared live.
       <code>bottom</code> pins it to the async-updating bottom edge and lifts it with a transform;
-      <code>top</code> computes a position from the stable top edge instead.
+      <code>top</code> computes a position from a live <code>clientHeight</code> read; <code>top-lvh</code>
+      does the same from the static <code>100lvh</code>, which cannot lag.
       <select id="anchor">
         <option value="bottom">bottom + transform lift</option>
-        <option value="top">top computed from stable edge</option>
+        <option value="top">top from clientHeight (live)</option>
+        <option value="top-lvh">top from 100lvh (static)</option>
       </select>
     </label>
     <div class="opt">
@@ -132,6 +139,7 @@
     const anchor = document.getElementById('anchor');
     anchor.addEventListener('change', () => {
       bar.classList.toggle('top', anchor.value === 'top');
+      bar.classList.toggle('top-lvh', anchor.value === 'top-lvh');
     });
 
     // Reflect fullscreen state: tint the root canvas so the strip's colour tells you where it came
@@ -201,10 +209,13 @@
     const hud = document.getElementById('hud');
     (function tick() {
       const vkH = vk && vk.boundingRect ? vk.boundingRect.height : 0;
+      // Keep the bar's own height available to the CSS-only top-lvh calc.
+      root.style.setProperty('--bar-h', bar.offsetHeight + 'px');
       if (anchor.value === 'top') {
-        // Position from the STABLE top edge: clientHeight (layout-viewport height, top-referenced and
-        // steady) minus the keyboard+navbar occlusion at the bottom, minus the bar's own height. The
-        // navbar term applies only while the keyboard is up, since the inset omits it exactly then.
+        // Position from a live clientHeight read (layout-viewport height, top-referenced) minus the
+        // keyboard+navbar occlusion at the bottom, minus the bar's own height. The navbar term applies
+        // only while the keyboard is up, since the inset omits it exactly then. Whether clientHeight
+        // itself stays steady under this bug is the very thing top vs top-lvh lets you compare.
         const occ = vkH > 0 ? vkH + loadNavbar(orient()) : 0;
         root.style.setProperty('--bar-top', (root.clientHeight - occ - bar.offsetHeight) + 'px');
       }
