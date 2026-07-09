@@ -23,6 +23,12 @@ The magenta strip appears in **`resizes-visual`** and **`overlays-content`**, bu
 container is laid out against the actually-available area and never exposes the canvas; in the other
 two the layout viewport stays "full" and the transient phantom-navbar shrink is what leaks the strip.
 
+But `resizes-content` is not a clean escape either: the bottom bar at `bottom: 0` still sits about a
+**navbar height too low**, so the keyboard overlaps it by that much. Same offset the phantom navbar
+is responsible for — the resized layout viewport's bottom sits below the keyboard's top by the navbar
+height. So the navbar-height error is present in *every* mode; only its outward form differs (canvas
+strip vs. occluded input).
+
 Two smaller, related quirks the HUD also exposes:
 
 - In `VirtualKeyboard` overlay mode, `geometrychange` fires **one interaction late** — on open it
