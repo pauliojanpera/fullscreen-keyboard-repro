@@ -29,6 +29,13 @@ is responsible for — the resized layout viewport's bottom sits below the keybo
 height. So the navbar-height error is present in *every* mode; only its outward form differs (canvas
 strip vs. occluded input).
 
+### The lag is not fullscreen-specific
+
+Even **outside fullscreen** (a plain browser tab) with `resizes-visual`, focusing the field shows it
+**pop up from under the keyboard with a visible delay** — the browser's "scroll the focused input
+into view" reaction lands late, the same interaction-gated lag. Fullscreen only adds the phantom
+navbar on top; the underlying delayed viewport reaction is present in an ordinary tab.
+
 Two smaller, related quirks the HUD also exposes:
 
 - In `VirtualKeyboard` overlay mode, `geometrychange` fires **one interaction late** — on open it
