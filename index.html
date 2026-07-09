@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta id="vp" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Fullscreen keyboard → navbar strip repro</title>
   <style>
     /* The ROOT CANVAS is what shows through wherever the dark container fails to cover — the strip.
@@ -30,6 +30,7 @@
     p { opacity: 0.85; }
     button { font: inherit; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid #3a4658; background: #1c2736; color: #e8eef6; }
     label { display: block; margin: 0.8rem 0; }
+    select { font: inherit; padding: 0.5rem; border-radius: 8px; border: 1px solid #3a4658; background: #1c2736; color: #e8eef6; }
     #hud { font: 12px/1.4 ui-monospace, monospace; color: #d7ffd7; }
 
     /* The bottom bar carries the field that must stay above the keyboard. */
@@ -52,6 +53,16 @@
     </p>
     <button id="fs">Enter fullscreen</button>
     <label>
+      <b>interactive-widget</b>: how the keyboard affects the viewport. The strip shows in
+      <code>resizes-visual</code> and <code>overlays-content</code>, but not <code>resizes-content</code>.
+      <select id="iw">
+        <option value="">(unset → browser default)</option>
+        <option value="resizes-visual">resizes-visual</option>
+        <option value="resizes-content">resizes-content</option>
+        <option value="overlays-content">overlays-content</option>
+      </select>
+    </label>
+    <label>
       <input type="checkbox" id="wa" />
       <b>Workaround</b>: never keep fullscreen and the keyboard open at once — leave fullscreen on
       focus, re-enter on blur (authorised by the dismiss tap). With this on, the strip never appears.
@@ -73,6 +84,15 @@
     const fsBtn = document.getElementById('fs');
     fsBtn.addEventListener('click', () => {
       document.fullscreenElement ? exit() : enter();
+    });
+
+    // Rewrite the viewport meta's interactive-widget live so the three keyboard-resize modes can be
+    // compared on-device without editing the file. Empty value drops the key to use the browser default.
+    const vp = document.getElementById('vp');
+    const iw = document.getElementById('iw');
+    const vpBase = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
+    iw.addEventListener('change', () => {
+      vp.content = iw.value ? vpBase + ', interactive-widget=' + iw.value : vpBase;
     });
 
     // Reflect fullscreen state: tint the root canvas so the strip's colour tells you where it came
@@ -99,7 +119,8 @@
     // Minimal readout: innerHeight stays frozen at the stale value until you touch the screen again.
     const hud = document.getElementById('hud');
     (function tick() {
-      hud.textContent = 'innerHeight=' + window.innerHeight + '   fullscreen=' + !!document.fullscreenElement;
+      hud.textContent = 'innerHeight=' + window.innerHeight + '   fullscreen=' + !!document.fullscreenElement
+        + '   iw=' + (iw.value || 'default');
       requestAnimationFrame(tick);
     })();
   </script>

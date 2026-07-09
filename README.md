@@ -126,6 +126,9 @@ The page is deliberately minimal — just enough to show the bug and one working
 - A fixed bottom bar with a text input (the thing that must ride above the keyboard).
 - **Enter / Exit fullscreen** button (the trigger; its label reflects the action it will perform; no
   install needed).
+- An **`interactive-widget`** selector that rewrites the viewport meta live (`resizes-visual` /
+  `resizes-content` / `overlays-content`, or unset for the browser default), so the three
+  keyboard-resize modes can be compared on-device without editing the file.
 - A **Workaround** checkbox — leaves fullscreen when the field is focused and re-enters it on `blur`
   (authorised by the dismiss gesture's transient activation), so fullscreen and the keyboard never
   overlap and the strip never appears.
