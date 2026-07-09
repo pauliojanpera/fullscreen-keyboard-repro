@@ -38,9 +38,9 @@ reported for the **omnibox / top controls**, but here the omnibox is absent (ful
 
 Minimal, self-contained page (single HTML file, source:
 <https://github.com/pauliojanpera/fullscreen-keyboard-repro>). The root canvas is painted magenta so
-any uncovered strip is unmistakable; a live HUD samples `innerHeight`, `visualViewport`,
-`VirtualKeyboard.boundingRect`, `navigator.userActivation`, display-mode and the fullscreen element
-every frame.
+any uncovered strip is unmistakable; a one-line readout shows `window.innerHeight` sitting frozen at
+the stale value until the next touch. A **Workaround** checkbox on the page toggles the mitigation
+described below.
 
 ## Steps to reproduce
 
@@ -90,14 +90,15 @@ bug — the part that does not appear to be separately tracked.
 
 ## `interactive-widget` mode dependence
 
-The page can flip `interactive-widget` live:
+Observed across `interactive-widget` modes (a fuller earlier build of the repro flipped these live;
+see git history):
 
 - The strip appears in **`resizes-visual`** (default) and **`overlays-content`**.
 - It does **not** appear in **`resizes-content`** — but there the fixed `bottom: 0` bar instead sits
   about a navbar height too low, so the keyboard overlaps it by the same amount. The navbar-height
   error is present in every mode; only its outward form differs.
 
-## Additional HUD observations (possibly related)
+## Additional observations (possibly related)
 
 - In VirtualKeyboard overlay mode, `geometrychange` appears to fire **one interaction late** — on open
   it still reports the closed geometry; the real height arrives at the next focus change.

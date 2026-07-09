@@ -58,24 +58,21 @@ Two smaller, related quirks the HUD also exposes:
 - `VirtualKeyboard.boundingRect.height` is measured from the layout-viewport bottom, so it **omits
   the navigation bar** — it is short by the navbar height versus the OS IME window.
 
-### An exit-FS / re-FS cycle appears to sidestep the strip
+### An exit-FS / re-FS cycle sidesteps the strip — this is the **Workaround** toggle
 
-Observed on-device: with **Exit FS on focus: ON** *and* **Re-FS on outside-tap: ON** at a ~**200 ms**
-delay, the magenta strip stays away. The cycle keeps fullscreen and the open keyboard from ever
-overlapping:
+Observed on-device: if fullscreen and the open keyboard never overlap, the magenta strip stays away.
+That is exactly what the page's **Workaround** checkbox does:
 
 1. Focusing the field **exits fullscreen**, so the keyboard opens in an ordinary (non-fullscreen)
    context where there is no phantom-navbar shrink to leak the canvas.
-2. Tapping outside to dismiss **re-requests fullscreen** ~200 ms later (the dismiss tap is the user
-   gesture that authorises it).
+2. When the field **blurs** (the keyboard is dismissed) it **re-requests fullscreen** straight away.
 
-**Re-FS on blur** is the cleaner form of the same idea: it re-requests fullscreen straight from the
-field's `blur` — no outside tap and no timer. `blur` fires on time (it is *not* interaction-gated
-the way the VK geometry is), so the only constraint is authorisation. Since `requestFullscreen` needs
-transient activation, the handler fires it only while `navigator.userActivation.isActive` — true when
-the blur was caused by a gesture (tap elsewhere, `Tab`, the **done** key) and false otherwise, so it
-succeeds exactly when it can and no-ops silently when it can't (e.g. a dismissal via the keyboard's
-own hide button or the system Back gesture, which deliver no activation).
+`blur` fires on time (it is *not* interaction-gated the way the VK geometry is), so the only
+constraint is authorisation. Since `requestFullscreen` needs transient activation, the handler fires
+it only while `navigator.userActivation.isActive` — true when the blur was caused by a gesture (tap
+elsewhere, `Tab`, the **done** key) and false otherwise, so it succeeds exactly when it can and no-ops
+silently when it can't (e.g. a dismissal via the keyboard's own hide button or the system Back
+gesture, which deliver no activation).
 
 So fullscreen is only ever active while the keyboard is closed, and the phantom-navbar shrink never
 coincides with `fullscreen + 100dvh` — which is exactly why the strip stays away. This targets the
@@ -119,43 +116,39 @@ part not separately reported**, and it is exactly what fullscreen isolates.
 
 ## What's in the page
 
-- A plain `<div>` container sized to `100dvh` with an opaque dark background — the app container. The
-  **root canvas is painted magenta** so any uncovered strip is unmissable.
+The page is deliberately minimal — just enough to show the bug and one working around of it:
+
+- A plain `<div>` container sized to `100dvh` with an opaque dark background. The **root canvas is
+  painted magenta** so any uncovered strip is unmissable.
 - A fixed bottom bar with a text input (the thing that must ride above the keyboard).
-- A live **HUD** (top of screen) sampling every frame: `innerHeight`, `visualViewport`,
-  `VirtualKeyboard.boundingRect`, `--kbtop`, `navigator.userActivation` (`isActive` /
-  `hasBeenActive`), display-mode, fullscreen element.
-- Toggle buttons that show their current state and isolate variables:
-  - **Fullscreen (API)** — enter/exit element-fullscreen (the trigger; no install needed).
-  - **VK overlaysContent** — flip the VirtualKeyboard overlay mode.
-  - **Container height 100dvh / 100lvh** — switch between the dynamic and the **large** viewport.
-    On `100lvh` the container always covers the physical screen, so the magenta strip cannot appear —
-    this is the "remove the hole" fix.
-  - **Bar anchor bottom:0 / top (--kbtop)** — position the bar with `bottom: 0` vs
-    `bottom: calc(100% - var(--kbtop))` (top-referenced, immune to the bottom drifting).
-  - **Exit FS on focus** — leave fullscreen when the field is focused (so the keyboard opens outside
-    fullscreen). Pair it with a re-FS toggle to run the exit/re-enter cycle above.
-  - **Re-FS on blur** — re-request fullscreen straight from the field's `blur`, gated on live
-    transient activation.
-  - **Re-FS on outside-tap** — re-request fullscreen after a delay when an outside tap dismisses the
-    keyboard.
-  - **iw** — set `interactive-widget` (`resizes-visual` / `resizes-content` / `overlays-content`).
+- **Enter fullscreen** button (the trigger; no install needed).
+- A **Workaround** checkbox — leaves fullscreen when the field is focused and re-enters it on `blur`
+  (authorised by the dismiss gesture's transient activation), so fullscreen and the keyboard never
+  overlap and the strip never appears.
+- A one-line readout of `innerHeight` + fullscreen state, so you can watch `innerHeight` sit frozen at
+  the stale value until the next touch.
+
+> Earlier revisions carried a fuller instrument panel (HUD sampling `visualViewport` /
+> `VirtualKeyboard.boundingRect` / `userActivation`, plus toggles for `100lvh`, `interactive-widget`,
+> VK overlay mode and bar anchoring) that produced the findings above. Git history has it if you want
+> to probe a specific variable again.
 
 ## How to run
 
-Serve over **HTTPS** or `http://localhost` (the Fullscreen API and VirtualKeyboard API need a secure
-context), open on an Android phone in a Chromium browser, then:
+Serve over **HTTPS** or `http://localhost` (the Fullscreen API needs a secure context), open on an
+Android phone in a Chromium browser, then:
 
 ```sh
 # any static server works, e.g.:
 python3 -m http.server 8080
 ```
 
-1. Tap **Enter fullscreen (API)**.
-2. Focus the input → keyboard opens.
-3. Dismiss with a **short tap** on the card → watch for the magenta strip and the frozen HUD numbers.
-4. Compare a **long-press** dismiss (usually clean).
-5. Toggle **100lvh** and repeat — the strip should be gone.
+1. Tap **Enter fullscreen**.
+2. Tap the input → keyboard opens.
+3. Dismiss with a **short tap** on the container → the magenta strip appears and stays; `innerHeight`
+   sits frozen until you touch again.
+4. Tick **Workaround** and repeat — the strip never appears.
+5. (Compare a **long-press** dismiss without the workaround — usually clean.)
 
 ## Environment where observed
 
