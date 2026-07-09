@@ -19,11 +19,13 @@ public so Pages is available on the free plan.
 
 ## Symptom
 
-When the on-screen keyboard is dismissed (especially with a quick tap), the OS navigation bar
-flickers back in "phantom" — it isn't really drawn, but the browser briefly reports a viewport
-shrunk *as if* it were there. The `100dvh` container faithfully shrinks with it, so a strip of the
-**root canvas** (the page's default background) is exposed along the bottom edge. With a default
-white canvas this reads as a bright white bar. Dismissing with a **long press** usually avoids it.
+When the on-screen keyboard is dismissed (especially with a quick tap), the browser reports a viewport
+shrunk by the height of the OS navigation bar *as if* the bar were there — a "phantom" navbar that
+isn't actually drawn. This is **not a flicker**: the shrink stays put indefinitely, and the exposed
+area does **not** recover on its own — it sits there until the next touch (see below). The `100dvh`
+container faithfully shrinks with the stale value, so a strip of the **root canvas** (the page's
+default background) is exposed along the bottom edge and stays exposed. With a default white canvas
+this reads as a bright white bar. Dismissing with a **long press** usually avoids it.
 
 The underlying viewport update is **interaction-gated, not time-based**: `innerHeight`,
 `visualViewport`, and `VirtualKeyboard.boundingRect` sit frozen at the stale value for as long as you
@@ -34,7 +36,7 @@ wait, then snap only on the next real touch. So no amount of waiting lets the pa
 The magenta strip appears in **`resizes-visual`** and **`overlays-content`**, but **not** in
 **`resizes-content`**. In `resizes-content` the keyboard resizes the layout viewport, so the `100dvh`
 container is laid out against the actually-available area and never exposes the canvas; in the other
-two the layout viewport stays "full" and the transient phantom-navbar shrink is what leaks the strip.
+two the layout viewport stays "full" and the stale phantom-navbar shrink is what leaks the strip.
 
 But `resizes-content` is not a clean escape either: the bottom bar at `bottom: 0` still sits about a
 **navbar height too low**, so the keyboard overlaps it by that much. Same offset the phantom navbar
