@@ -9,8 +9,7 @@
     /* The ROOT CANVAS is what shows through wherever the dark container fails to cover — the strip.
        Normal (windowed) is the expected case, so it matches the bottom bar's background: any leaked
        strip blends into the UI instead of screaming. Fullscreen is the alert case where the phantom
-       navbar bug bites, so the canvas turns a dark magenta — kept dark (not #ff00ff) so the system
-       navbar's antialiased white button engravings stay legible against it. */
+       navbar bug bites, so the canvas turns a dark magenta. */
     html, body { margin: 0; background: #223247; }
     html.fs, html.fs body { background: #3d0a2e; }
 
