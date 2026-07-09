@@ -32,9 +32,19 @@
     select { font: inherit; padding: 0.5rem; border-radius: 8px; border: 1px solid #3a4658; background: #1c2736; color: #e8eef6; }
     #hud { font: 12px/1.4 ui-monospace, monospace; color: #d7ffd7; }
 
-    /* The bottom bar carries the field that must stay above the keyboard. */
-    #bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 0.6rem; background: #223247; border-top: 2px solid #4da3ff; }
+    /* The bottom bar carries the field that must stay above the keyboard. overlays-content is the only
+       mode that lets the app fix the navbar-height error: the browser resizes nothing, so we lift the
+       bar ourselves by the keyboard inset PLUS the navbar height the inset omits (--navbar, measured
+       by the calibration step). The other modes bake the same error into a viewport we cannot touch. */
+    #bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 0.6rem; background: #223247; border-top: 2px solid #4da3ff;
+           transform: translateY(calc(-1 * (env(keyboard-inset-height, 0px) + var(--navbar, 0px)))); }
+    /* Alternative anchoring: instead of pinning to the flaky bottom edge and lifting, compute a top
+       offset from the STABLE top edge (the layout viewport's top does not lag the way the bottom
+       does). --bar-top is recomputed in JS from clientHeight minus the keyboard+navbar occlusion. */
+    #bar.top { bottom: auto; top: var(--bar-top, 0px); transform: none; }
     #bar input { box-sizing: border-box; width: 100%; font: inherit; padding: 0.6rem; border-radius: 8px; border: 1px solid #3a4658; background: #0f151d; color: #fff; }
+    #phone { box-sizing: border-box; width: 100%; margin-top: 0.5rem; font: inherit; padding: 0.6rem; border-radius: 8px; border: 1px solid #3a4658; background: #0f151d; color: #fff; }
+    #cal { display: block; margin-top: 0.4rem; font: 12px/1.4 ui-monospace, monospace; color: #d7ffd7; }
   </style>
 </head>
 
@@ -61,10 +71,27 @@
         <option value="overlays-content">overlays-content</option>
       </select>
     </label>
+    <label>
+      <b>Anchor</b>: how the bar's position is expressed, so the two strategies can be compared live.
+      <code>bottom</code> pins it to the async-updating bottom edge and lifts it with a transform;
+      <code>top</code> computes a position from the stable top edge instead.
+      <select id="anchor">
+        <option value="bottom">bottom + transform lift</option>
+        <option value="top">top computed from stable edge</option>
+      </select>
+    </label>
     <div class="opt">
       <input type="checkbox" id="wa" />
       <b>Workaround</b>: never keep fullscreen and the keyboard open at once — leave fullscreen on
       focus, re-enter on blur (authorised by the dismiss tap). With this on, the strip never appears.
+    </div>
+    <div class="opt">
+      <b>Calibration</b>: in fullscreen, type into the phone field and dismiss the keyboard. The app
+      reads the OS navigation-bar height from the resulting viewport shrink and remembers it per
+      orientation — that is the height <code>env(keyboard-inset-height)</code> omits, added back to
+      the bar lift in <code>overlays-content</code>.
+      <input id="phone" type="tel" inputmode="tel" placeholder="Phone number — keyboard opens" />
+      <span id="cal">navbar: not calibrated</span>
     </div>
     <pre id="hud"></pre>
   </div>
@@ -89,9 +116,22 @@
     // compared on-device without editing the file. Empty value drops the key to use the browser default.
     const vp = document.getElementById('vp');
     const iw = document.getElementById('iw');
+    const vk = navigator.virtualKeyboard;
     const vpBase = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
     iw.addEventListener('change', () => {
       vp.content = iw.value ? vpBase + ', interactive-widget=' + iw.value : vpBase;
+      // overlays-content hands layout to the app; turning on the VirtualKeyboard API is what actually
+      // populates the env(keyboard-inset-*) variables the #bar lift rides on.
+      if (vk) vk.overlaysContent = iw.value === 'overlays-content';
+    });
+
+    // Anchor strategy: 'bottom' pins the bar to the bottom edge (CSS transform lift); 'top' switches
+    // to a JS-computed top offset from the stable top edge (see the tick below). Toggling just adds
+    // or removes the .top class; the position itself is kept fresh in the animation loop.
+    const bar = document.getElementById('bar');
+    const anchor = document.getElementById('anchor');
+    anchor.addEventListener('change', () => {
+      bar.classList.toggle('top', anchor.value === 'top');
     });
 
     // Reflect fullscreen state: tint the root canvas so the strip's colour tells you where it came
@@ -115,11 +155,62 @@
       wasFs = false;
     });
 
+    // Navbar-height calibration. The height env(keyboard-inset-height) omits is exactly the OS
+    // navigation bar. We measure it once during a natural keyboard interaction (the phone field) and
+    // remember it per orientation, because it changes with orientation and with the nav mode
+    // (3-button vs gesture). The signal is the interaction-gated shrink this repro is about: in
+    // fullscreen + overlays-content innerHeight reads the full value while the keyboard is up, then
+    // the dismiss leaves it short by one navbar height. That delta IS the navbar height, isolated.
+    const phone = document.getElementById('phone');
+    const cal = document.getElementById('cal');
+    const orient = () =>
+      (screen.orientation && screen.orientation.type ? screen.orientation.type
+        : (window.innerWidth > window.innerHeight ? 'landscape' : 'portrait')).split('-')[0];
+    const navbarKey = o => 'navbar.' + o;
+    const loadNavbar = o => parseInt(localStorage.getItem(navbarKey(o)) || '0', 10) || 0;
+    const applyNavbar = () => {
+      const o = orient();
+      const px = loadNavbar(o);
+      root.style.setProperty('--navbar', px + 'px');
+      cal.textContent = px ? 'navbar: ' + px + 'px (' + o + ')' : 'navbar: not calibrated (' + o + ')';
+      return px;
+    };
+
+    let fullBeforeDismiss = 0;
+    phone.addEventListener('focus', () => {
+      // Keyboard opening; in overlays-content innerHeight is still the full (unshrunk) height. Hold it
+      // as the reference the post-dismiss shrink is measured against.
+      fullBeforeDismiss = window.innerHeight;
+    });
+    phone.addEventListener('blur', () => {
+      // Dismiss just landed. Sample on the next frame so the stale shrink has settled, then store the
+      // delta only if it looks like a real navigation bar (guards against no-op dismissals and the
+      // non-fullscreen case, where the navbar was never hidden so the delta is ~0).
+      requestAnimationFrame(() => {
+        const navbar = fullBeforeDismiss - window.innerHeight;
+        if (navbar > 8 && navbar < 200) {
+          localStorage.setItem(navbarKey(orient()), String(navbar));
+        }
+        applyNavbar();
+      });
+    });
+    window.addEventListener('orientationchange', () => setTimeout(applyNavbar, 0));
+    applyNavbar();
+
     // Minimal readout: innerHeight stays frozen at the stale value until you touch the screen again.
     const hud = document.getElementById('hud');
     (function tick() {
+      const vkH = vk && vk.boundingRect ? vk.boundingRect.height : 0;
+      if (anchor.value === 'top') {
+        // Position from the STABLE top edge: clientHeight (layout-viewport height, top-referenced and
+        // steady) minus the keyboard+navbar occlusion at the bottom, minus the bar's own height. The
+        // navbar term applies only while the keyboard is up, since the inset omits it exactly then.
+        const occ = vkH > 0 ? vkH + loadNavbar(orient()) : 0;
+        root.style.setProperty('--bar-top', (root.clientHeight - occ - bar.offsetHeight) + 'px');
+      }
       hud.textContent = 'innerHeight=' + window.innerHeight + '   fullscreen=' + !!document.fullscreenElement
-        + '   iw=' + (iw.value || 'default');
+        + '   iw=' + (iw.value || 'default') + '   anchor=' + anchor.value
+        + '   navbar=' + loadNavbar(orient()) + '   vkInset=' + vkH;
       requestAnimationFrame(tick);
     })();
   </script>
