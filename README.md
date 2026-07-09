@@ -4,6 +4,21 @@ A minimal, self-contained reproduction of a Chromium-on-Android bug that shows u
 (entered via the Fullscreen API) when the top-level container is sized to the **dynamic viewport**
 (`100dvh`). Installing as a PWA is **not** required.
 
+## Live demo (test on a phone)
+
+Published to GitHub Pages over HTTPS — open on an Android phone in a Chromium browser:
+
+- **Custom-elements build:** <https://pauliojanpera.github.io/fullscreen-keyboard-repro/>
+- **No-custom-elements build:** <https://pauliojanpera.github.io/fullscreen-keyboard-repro/no-custom-elements.html>
+
+Both pages cross-link to each other. The two builds are identical in behaviour; the second one uses a
+plain `<div>` in the light DOM instead of a `<test-app>` custom element with shadow DOM, so it rules
+out custom elements / shadow DOM as a factor in the bug.
+
+The site is deployed by the `Deploy to GitHub Pages` workflow (`.github/workflows/deploy-pages.yml`)
+on every push to `master`. First-time setup: in **Settings → Pages → Build and deployment**, set the
+**Source** to **GitHub Actions** (the workflow also attempts to enable this automatically).
+
 ## Symptom
 
 When the on-screen keyboard is dismissed (especially with a quick tap), the OS navigation bar
@@ -47,6 +62,7 @@ Two smaller, related quirks the HUD also exposes:
 
 - A `<test-app>` **custom element** (shadow DOM) sized to `100dvh` with an opaque dark background —
   the app container. The **root canvas is painted magenta** so any uncovered strip is unmissable.
+  (`no-custom-elements.html` is the same page built from a plain `<div>` in the light DOM instead.)
 - A fixed bottom bar with a text input (the thing that must ride above the keyboard).
 - A live **HUD** (top of screen) sampling every frame: `innerHeight`, `visualViewport`,
   `VirtualKeyboard.boundingRect`, `--kbtop`, display-mode, fullscreen element.

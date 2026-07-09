@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <!-- `interactive-widget` can be flipped live from the panel to compare keyboard modes. -->
+  <meta id="vp" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Fullscreen keyboard / phantom-navbar repro (no custom elements)</title>
+  <style>
+    /* The ROOT CANVAS is painted magenta so any area the app box fails to cover screams at you.
+         By default a page's canvas is white, so in the wild this shows up as a "white bar". */
+    html {
+      background: #ff00ff;
+    }
+
+    body {
+      margin: 0;
+      /* Deliberately NOT full-screen and NOT given the app colour, so the app box (the plain
+           container) leaving the canvas exposed is obvious. */
+      background: #ff00ff;
+    }
+
+    /* The application container — a PLAIN <div> (no custom element, no shadow DOM) sized to the
+         DYNAMIC viewport (100dvh). Its own opaque, dark background is what SHOULD cover the screen;
+         wherever it doesn't, magenta shows through. Toggle it to 100lvh (large viewport) from the
+         panel to see the strip disappear. */
+    .test-app {
+      display: block;
+      min-height: 100dvh;
+      background: #101820;
+      color: #e8eef6;
+      font: 15px/1.4 system-ui, sans-serif;
+    }
+
+    /* A live metrics HUD in the light DOM so it always sits on top. */
+    #hud {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 99999;
+      margin: 0;
+      padding: 6px 8px;
+      font: 11px/1.35 ui-monospace, monospace;
+      color: #d7ffd7;
+      background: rgba(0, 0, 0, 0.72);
+      white-space: pre;
+      pointer-events: none;
+    }
+
+    /* --- Styles that used to live in the shadow DOM, now scoped under .test-app --- */
+    .test-app .card {
+      padding: 3.2rem 1rem 1rem;
+    }
+
+    .test-app h1 {
+      font-size: 1.1rem;
+    }
+
+    .test-app p {
+      opacity: 0.8;
+    }
+
+    .test-app a {
+      color: #7cc0ff;
+    }
+
+    .test-app button,
+    .test-app select {
+      font: inherit;
+      margin: 0.2rem 0.3rem 0.2rem 0;
+      padding: 0.5rem 0.7rem;
+      border-radius: 8px;
+      border: 1px solid #3a4658;
+      background: #1c2736;
+      color: #e8eef6;
+    }
+
+    .test-app .row {
+      margin: 0.5rem 0;
+    }
+
+    /* The bottom bar — a fixed panel. Default: classic bottom-anchored. Toggle "top-anchored"
+         to position it with `bottom: calc(100% - var(--kbtop))` instead. */
+    .test-app .bar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.6rem 0.8rem;
+      background: #223247;
+      /* opaque: a magenta strip below it means the bar didn't reach the edge */
+      border-top: 2px solid #4da3ff;
+    }
+
+    .test-app.top-anchored .bar {
+      bottom: calc(100% - var(--kbtop, 100%));
+    }
+
+    .test-app .bar input {
+      flex: 1;
+      min-width: 0;
+      font: inherit;
+      padding: 0.6rem;
+      border-radius: 8px;
+      border: 1px solid #3a4658;
+      background: #0f151d;
+      color: #fff;
+    }
+  </style>
+</head>
+
+<body>
+  <pre id="hud">booting…</pre>
+
+  <!-- Plain container: no <test-app> custom element, no shadow DOM. Same markup, light DOM. -->
+  <div class="test-app" id="app">
+    <div class="card">
+      <h1>Fullscreen keyboard / phantom-navbar repro</h1>
+      <p>
+        <strong>No-custom-elements build.</strong> Tap “Enter fullscreen (API)”, then focus the field
+        below and dismiss the keyboard with a short tap. Watch for a magenta strip at the bottom and
+        the lag in the HUD numbers. Long-press-to-dismiss usually avoids the strip.
+      </p>
+      <div class="row">
+        <button data-act="fs">Enter fullscreen (API)</button>
+        <button data-act="vk">Toggle VK overlaysContent</button>
+      </div>
+      <div class="row">
+        <button data-act="dvh">Toggle 100dvh / 100lvh</button>
+        <button data-act="anchor">Toggle bottom / top-anchored</button>
+      </div>
+      <div class="row">
+        <button data-act="exitfs">Exit FS on focus: OFF</button>
+      </div>
+      <div class="row">
+        <button data-act="refs">Re-FS on outside-tap: OFF</button>
+        delay
+        <input data-act="refsdelay" type="number" min="0" max="2000" value="250"
+          style="width: 4.5em; font: inherit; padding: 0.4rem; border-radius: 8px; border: 1px solid #3a4658; background: #0f151d; color: #fff" />
+        ms
+      </div>
+      <div class="row">
+        iw&nbsp;
+        <select data-act="iw">
+          <option value="">(unset → resizes-visual)</option>
+          <option value="resizes-content">resizes-content</option>
+          <option value="resizes-visual">resizes-visual</option>
+          <option value="overlays-content">overlays-content</option>
+        </select>
+      </div>
+      <div class="row">
+        <a href="./index.html">↔ Open the custom-elements version</a>
+      </div>
+    </div>
+
+    <div class="bar">
+      <input type="text" placeholder="Tap here — keyboard opens" enterkeyhint="done" />
+    </div>
+  </div>
+
+  <script>
+    const vk = navigator.virtualKeyboard || null;
+    const root = document.documentElement;
+
+    // ---- the app container (plain <div>, light DOM — no custom element / shadow DOM) ----
+    // Same logic as the custom-element build; `app` replaces `this`, and the light-DOM container
+    // replaces the shadow root for scoped queries and event delegation.
+    function initApp(app) {
+      const input = app.querySelector('input');
+
+      // Drive --kbtop when top-anchored: lift by a cached inset on focus, drop to the immersive
+      // baseline on blur. (Trivial on purpose — the point is the CSS anchoring, not this math.)
+      let baseH = window.innerHeight;
+      let cached = Math.round(window.innerHeight * 0.45);
+      let focused = false;
+      let reFs = false; // experiment: re-assert fullscreen on outside-tap
+      let reFsDelay = 250;
+      let exitFsOnFocus = false; // experiment: leave fullscreen while the field is focused
+      let lvh = false;
+
+      input.addEventListener('focus', () => {
+        focused = true;
+        if (exitFsOnFocus && document.fullscreenElement) {
+          (document.exitFullscreen || document.webkitExitFullscreen)?.call(document)?.catch?.(() => { });
+        }
+        baseH = Math.max(baseH, window.innerHeight);
+        root.style.setProperty('--kbtop', baseH - cached + 'px');
+      });
+      input.addEventListener('blur', () => {
+        focused = false;
+        root.style.setProperty('--kbtop', baseH + 'px');
+      });
+
+      // Experiment: when the field is focused and the user taps OUTSIDE it (dismissing the
+      // keyboard), re-request fullscreen after a delay. The tap's transient activation is still
+      // valid inside a short setTimeout (~5 s window), so requestFullscreen is allowed there.
+      document.addEventListener(
+        'pointerdown',
+        (e) => {
+          if (!reFs || !focused) return;
+          if (e.composedPath().includes(input)) return; // tapped the field itself
+          setTimeout(() => {
+            (root.requestFullscreen || root.webkitRequestFullscreen)?.call(root)?.catch?.(() => { });
+          }, reFsDelay);
+        },
+        true
+      );
+      if (vk) {
+        vk.addEventListener('geometrychange', () => {
+          const r = Math.round(vk.boundingRect.height);
+          if (r > 0) cached = r + Math.max(0, baseH - window.innerHeight);
+        });
+      }
+
+      // Reflect the current state in each toggle's own label.
+      const btn = {};
+      app.querySelectorAll('button[data-act]').forEach((b) => (btn[b.dataset.act] = b));
+      const syncLabels = () => {
+        btn.fs.textContent = document.fullscreenElement
+          ? 'Fullscreen (API): ON — tap to exit'
+          : 'Fullscreen (API): OFF — tap to enter';
+        btn.vk.textContent =
+          'VK overlaysContent: ' + (vk ? (vk.overlaysContent ? 'ON' : 'OFF') : 'no API');
+        btn.dvh.textContent = 'Container height: ' + (lvh ? '100lvh' : '100dvh');
+        btn.anchor.textContent =
+          'Bar anchor: ' + (app.classList.contains('top-anchored') ? 'top (--kbtop)' : 'bottom:0');
+        btn.refs.textContent = 'Re-FS on outside-tap: ' + (reFs ? 'ON' : 'OFF');
+        btn.exitfs.textContent = 'Exit FS on focus: ' + (exitFsOnFocus ? 'ON' : 'OFF');
+      };
+
+      app.addEventListener('click', (e) => {
+        const act = e.target?.dataset?.act;
+        if (!act) return;
+        if (act === 'fs') {
+          if (document.fullscreenElement) {
+            (document.exitFullscreen || document.webkitExitFullscreen)?.call(document)?.catch?.(() => { });
+          } else {
+            (root.requestFullscreen || root.webkitRequestFullscreen)?.call(root)?.catch?.(() => { });
+          }
+        } else if (act === 'vk' && vk) {
+          vk.overlaysContent = !vk.overlaysContent;
+        } else if (act === 'dvh') {
+          lvh = !lvh;
+          app.style.minHeight = lvh ? '100lvh' : '100dvh';
+        } else if (act === 'anchor') {
+          app.classList.toggle('top-anchored');
+        } else if (act === 'refs') {
+          reFs = !reFs;
+        } else if (act === 'exitfs') {
+          exitFsOnFocus = !exitFsOnFocus;
+        }
+        syncLabels();
+      });
+      document.addEventListener('fullscreenchange', syncLabels);
+      document.addEventListener('webkitfullscreenchange', syncLabels);
+      syncLabels();
+      app.addEventListener('input', (e) => {
+        if (e.target?.dataset?.act === 'refsdelay') reFsDelay = +e.target.value || 0;
+      });
+      app.addEventListener('change', (e) => {
+        if (e.target?.dataset?.act === 'iw') {
+          const base = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
+          document.getElementById('vp').content =
+            base + (e.target.value ? ', interactive-widget=' + e.target.value : '');
+        }
+      });
+    }
+    initApp(document.getElementById('app'));
+
+    // ---- HUD: sample every frame so the interaction-gated lag is visible ----
+    const hud = document.getElementById('hud');
+    const dm = (m) => (matchMedia('(display-mode: ' + m + ')').matches ? m : '');
+    function render() {
+      const vv = window.visualViewport;
+      const kbtop = getComputedStyle(root).getPropertyValue('--kbtop').trim() || '(unset)';
+      hud.textContent = [
+        'innerH=' + window.innerHeight + '  screen=' + screen.height + '  dpr=' + devicePixelRatio,
+        'visualViewport h=' + (vv ? Math.round(vv.height) : '-') + ' offTop=' + (vv ? Math.round(vv.offsetTop) : '-'),
+        'vk.boundingRect.h=' + (vk ? Math.round(vk.boundingRect.height) : 'no-API') +
+        '  overlays=' + (vk ? vk.overlaysContent : '-'),
+        '--kbtop=' + kbtop + '  active=' + (document.activeElement?.tagName || '-'),
+        'display-mode=' + [dm('fullscreen'), dm('standalone'), dm('minimal-ui'), dm('browser')].filter(Boolean).join(',') +
+        '  fsEl=' + !!document.fullscreenElement,
+      ].join('\n');
+      requestAnimationFrame(render);
+    }
+    requestAnimationFrame(render);
+  </script>
+</body>
+
+</html>
