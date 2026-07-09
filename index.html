@@ -6,8 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Fullscreen keyboard → navbar strip repro</title>
   <style>
-    /* The ROOT CANVAS is magenta. Whatever the dark container fails to cover shows up as a strip. */
-    html, body { margin: 0; background: #ff00ff; }
+    /* The ROOT CANVAS is a dark magenta. Whatever the dark container fails to cover shows up as a strip.
+       It is kept dark (not #ff00ff) so the system navbar's antialiased white button engravings stay legible
+       against it — a bright magenta washes them out and you cannot tell a real navbar from an empty strip.
+       The hue also shifts when the browser enters fullscreen, so the strip's origin is obvious at a glance. */
+    html, body { margin: 0; background: #3d0a2e; }
+    html.fs, html.fs body { background: #0a2e3d; }
 
     /* Container sized to the DYNAMIC viewport. When the keyboard is dismissed the browser leaves the
        viewport shrunk by a navbar height (stale until the next touch), so 100dvh renders short and a
@@ -63,6 +67,11 @@
 
     document.getElementById('fs').addEventListener('click', () => {
       document.fullscreenElement ? exit() : enter();
+    });
+
+    // Tint the root canvas by fullscreen state so the strip's colour tells you where it came from.
+    document.addEventListener('fullscreenchange', () => {
+      root.classList.toggle('fs', !!document.fullscreenElement);
     });
 
     // Workaround: keep fullscreen and the keyboard from ever overlapping.
