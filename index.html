@@ -32,8 +32,12 @@
     select { font: inherit; padding: 0.5rem; border-radius: 8px; border: 1px solid #3a4658; background: #1c2736; color: #e8eef6; }
     #hud { font: 12px/1.4 ui-monospace, monospace; color: #d7ffd7; }
 
-    /* The bottom bar carries the field that must stay above the keyboard. */
-    #bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 0.6rem; background: #223247; border-top: 2px solid #4da3ff; }
+    /* The bottom bar carries the field that must stay above the keyboard. In overlays-content the
+       browser resizes nothing, so the app must lift the bar itself: translate it up by the keyboard
+       inset the VirtualKeyboard API publishes. env(keyboard-inset-height) is 0 unless
+       navigator.virtualKeyboard.overlaysContent is on, so this is inert in every other mode. */
+    #bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 0.6rem; background: #223247; border-top: 2px solid #4da3ff;
+           transform: translateY(calc(-1 * env(keyboard-inset-height, 0px))); }
     #bar input { box-sizing: border-box; width: 100%; font: inherit; padding: 0.6rem; border-radius: 8px; border: 1px solid #3a4658; background: #0f151d; color: #fff; }
   </style>
 </head>
@@ -89,9 +93,14 @@
     // compared on-device without editing the file. Empty value drops the key to use the browser default.
     const vp = document.getElementById('vp');
     const iw = document.getElementById('iw');
+    const vk = navigator.virtualKeyboard;
     const vpBase = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
     iw.addEventListener('change', () => {
       vp.content = iw.value ? vpBase + ', interactive-widget=' + iw.value : vpBase;
+      // overlays-content opts out of automatic resizing, so it is the app's job to move its own UI
+      // around the keyboard. Turning on the VirtualKeyboard API is what actually populates the
+      // env(keyboard-inset-*) variables the #bar transform above rides on.
+      if (vk) vk.overlaysContent = iw.value === 'overlays-content';
     });
 
     // Reflect fullscreen state: tint the root canvas so the strip's colour tells you where it came
@@ -118,8 +127,11 @@
     // Minimal readout: innerHeight stays frozen at the stale value until you touch the screen again.
     const hud = document.getElementById('hud');
     (function tick() {
+      // vkH is the inset driving the bar lift. It updates one interaction late and reads short by a
+      // navbar height, so watch it lag behind and undershoot when the keyboard opens.
+      const vkH = vk && vk.boundingRect ? vk.boundingRect.height : 0;
       hud.textContent = 'innerHeight=' + window.innerHeight + '   fullscreen=' + !!document.fullscreenElement
-        + '   iw=' + (iw.value || 'default');
+        + '   iw=' + (iw.value || 'default') + '   vkInset=' + vkH;
       requestAnimationFrame(tick);
     })();
   </script>
