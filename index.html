@@ -65,13 +65,17 @@
     const enter = () => root.requestFullscreen?.().catch(() => {});
     const exit = () => document.exitFullscreen?.().catch(() => {});
 
-    document.getElementById('fs').addEventListener('click', () => {
+    const fsBtn = document.getElementById('fs');
+    fsBtn.addEventListener('click', () => {
       document.fullscreenElement ? exit() : enter();
     });
 
-    // Tint the root canvas by fullscreen state so the strip's colour tells you where it came from.
+    // Reflect fullscreen state: tint the root canvas so the strip's colour tells you where it came
+    // from, and label the button with the action it will perform (Enter vs Exit).
     document.addEventListener('fullscreenchange', () => {
-      root.classList.toggle('fs', !!document.fullscreenElement);
+      const isFs = !!document.fullscreenElement;
+      root.classList.toggle('fs', isFs);
+      fsBtn.textContent = isFs ? 'Exit fullscreen' : 'Enter fullscreen';
     });
 
     // Workaround: keep fullscreen and the keyboard from ever overlapping.
