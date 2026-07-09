@@ -4,7 +4,6 @@ Commit and push to **`master`**. GitHub Pages deploys only from `master`, so
 that is the only branch whose results the user can actually see on the live
 site. Work done on a `claude/*` branch is invisible until it reaches `master`.
 
-Live URLs:
+Live URL:
 
 - https://pauliojanpera.github.io/fullscreen-keyboard-repro/
-- https://pauliojanpera.github.io/fullscreen-keyboard-repro/no-custom-elements.html
