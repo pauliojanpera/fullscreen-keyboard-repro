@@ -64,6 +64,22 @@ Two smaller, related quirks the HUD also exposes:
 - `VirtualKeyboard.boundingRect.height` is measured from the layout-viewport bottom, so it **omits
   the navigation bar** — it is short by the navbar height versus the OS IME window.
 
+### An exit-FS / re-FS cycle appears to sidestep the strip
+
+Observed on-device: with **Exit FS on focus: ON** *and* **Re-FS on outside-tap: ON** at a ~**200 ms**
+delay, the magenta strip stays away. The cycle keeps fullscreen and the open keyboard from ever
+overlapping:
+
+1. Focusing the field **exits fullscreen**, so the keyboard opens in an ordinary (non-fullscreen)
+   context where there is no phantom-navbar shrink to leak the canvas.
+2. Tapping outside to dismiss **re-requests fullscreen** ~200 ms later — the tap's transient
+   activation is still valid inside that short `setTimeout` window, so `requestFullscreen` is allowed.
+
+So fullscreen is only ever active while the keyboard is closed, and the phantom-navbar shrink never
+coincides with `fullscreen + 100dvh`. It's a timing dance around the bug rather than a fix for the
+underlying interaction-gated viewport update; both toggles must be on, and it leans on the transient-
+activation window staying open across the delay.
+
 ## What's in the page
 
 - A `<test-app>` **custom element** (shadow DOM) sized to `100dvh` with an opaque dark background —
