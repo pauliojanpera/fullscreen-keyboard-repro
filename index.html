@@ -29,7 +29,7 @@
     h1 { font-size: 1.15rem; }
     p { opacity: 0.85; }
     button { font: inherit; padding: 0.6rem 0.8rem; border-radius: 8px; border: 1px solid #3a4658; background: #1c2736; color: #e8eef6; }
-    label { display: block; margin: 0.8rem 0; }
+    label, .opt { display: block; margin: 0.8rem 0; }
     select { font: inherit; padding: 0.5rem; border-radius: 8px; border: 1px solid #3a4658; background: #1c2736; color: #e8eef6; }
     #hud { font: 12px/1.4 ui-monospace, monospace; color: #d7ffd7; }
 
@@ -62,11 +62,11 @@
         <option value="overlays-content">overlays-content</option>
       </select>
     </label>
-    <label>
+    <div class="opt">
       <input type="checkbox" id="wa" />
       <b>Workaround</b>: never keep fullscreen and the keyboard open at once — leave fullscreen on
       focus, re-enter on blur (authorised by the dismiss tap). With this on, the strip never appears.
-    </label>
+    </div>
     <pre id="hud"></pre>
   </div>
 
