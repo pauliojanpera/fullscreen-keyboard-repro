@@ -121,24 +121,18 @@ The page is deliberately minimal — just enough to show the bug and one working
 - A plain `<div>` container sized to `100dvh` with an opaque dark background. The **root canvas is
   state-coded**: while windowed it matches the bottom bar, so an ordinary uncovered strip blends into
   the UI; in fullscreen — the bug's condition — it turns **dark magenta**. So if you ever see that
-  colour, you have met the bug. (Dark, not `#ff00ff`, so the OS navbar's white button engravings stay
-  legible against it rather than washing out.)
+  colour, you have met the bug.
 - A fixed bottom bar with a text input (the thing that must ride above the keyboard).
 - **Enter / Exit fullscreen** button (the trigger; its label reflects the action it will perform; no
   install needed).
-- An **`interactive-widget`** selector that rewrites the viewport meta live (`resizes-visual` /
-  `resizes-content` / `overlays-content`, or unset for the browser default), so the three
-  keyboard-resize modes can be compared on-device without editing the file.
+- `interactive-widget=overlays-content` in the viewport meta, with `VirtualKeyboard.overlaysContent`
+  turned on to match: the browser resizes nothing and the page lifts the bottom bar itself by
+  `env(keyboard-inset-height)`.
 - A **Workaround** checkbox — leaves fullscreen when the field is focused and re-enters it on `blur`
   (authorised by the dismiss gesture's transient activation), so fullscreen and the keyboard never
   overlap and the strip never appears.
 - A one-line readout of `innerHeight` + fullscreen state, so you can watch `innerHeight` sit frozen at
   the stale value until the next touch.
-
-> Earlier revisions carried a fuller instrument panel (HUD sampling `visualViewport` /
-> `VirtualKeyboard.boundingRect` / `userActivation`, plus toggles for `100lvh`, `interactive-widget`,
-> VK overlay mode and bar anchoring) that produced the findings above. Git history has it if you want
-> to probe a specific variable again.
 
 ## How to run
 
