@@ -5,6 +5,8 @@
   <meta charset="utf-8" />
   <meta name="viewport"
     content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, interactive-widget=overlays-content" />
+  <meta name="theme-color" content="#101820" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <title>Fullscreen keyboard causing a navbar phantom</title>
   <style>
     /* The ROOT CANVAS is what shows through wherever the dark container fails to cover — the strip.
@@ -98,6 +100,8 @@
   <ol id="steps">
     <li>Tap <b>Enter fullscreen</b>, tap the bottom field, dismiss with a tap.</li>
     <li>Magenta at the bottom = the bug. Tick <b>Workaround</b> and repeat.</li>
+    <li>Or install to the home screen and launch from the icon: the manifest asks for
+      <code>display: fullscreen</code>, so step 1's button is unnecessary.</li>
   </ol>
   <button id="fs">Enter fullscreen</button>
   </p>
@@ -134,13 +138,23 @@
 
     const bottomBarElement = document.getElementById('bottom-bar');
 
+    // An installed PWA launched from the manifest's display:fullscreen is already fullscreen, with no
+    // fullscreenElement to show for it. Both routes reach the bug's condition, so both must tint.
+    const fullscreenDisplayModeQuery = matchMedia('(display-mode: fullscreen)');
+    const isDisplayedFullscreen = () =>
+      !!document.fullscreenElement || fullscreenDisplayModeQuery.matches;
+
     // Reflect fullscreen state: tint the root canvas so the strip's colour tells you where it came
-    // from, and label the button with the action it will perform (Enter vs Exit).
-    document.addEventListener('fullscreenchange', () => {
-      const isFullscreen = !!document.fullscreenElement;
-      documentRootElement.classList.toggle('fs', isFullscreen);
-      fullscreenToggleButton.textContent = isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
-    });
+    // from, and label the button with the action it will perform (Enter vs Exit). The label tracks
+    // the API alone, since that is the only layer the button controls.
+    const reflectFullscreenState = () => {
+      documentRootElement.classList.toggle('fs', isDisplayedFullscreen());
+      fullscreenToggleButton.textContent =
+        document.fullscreenElement ? 'Exit fullscreen' : 'Enter fullscreen';
+    };
+    document.addEventListener('fullscreenchange', reflectFullscreenState);
+    fullscreenDisplayModeQuery.addEventListener('change', reflectFullscreenState);
+    reflectFullscreenState();
 
     // Workaround: keep fullscreen and the keyboard from ever overlapping.
     let wasFullscreenOnFocus = false;
@@ -167,6 +181,7 @@
       documentRootElement.style.setProperty('--bottom-bar-height', bottomBarElement.offsetHeight + 'px');
       viewportStatusReadout.textContent =
         'innerHeight=' + window.innerHeight + ', fullscreen=' + !!document.fullscreenElement
+        + ', displayModeFullscreen=' + fullscreenDisplayModeQuery.matches
         + ', vkInset=' + keyboardInsetHeight;
       requestAnimationFrame(updateBarAndReadout);
     })();
