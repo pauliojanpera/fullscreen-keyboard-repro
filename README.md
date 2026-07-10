@@ -1,12 +1,12 @@
 # Fullscreen keyboard / phantom-navbar repro
 
-A minimal, self-contained reproduction of a Chromium-on-Android bug that shows up in **fullscreen**
+A minimal, self-contained reproduction of a **Brave-on-Android** bug that shows up in **fullscreen**
 (entered via the Fullscreen API) when the top-level container is sized to the **dynamic viewport**
-(`100dvh`). Installing as a PWA is **not** required.
+(`100dvh`). **Chrome on the same device does not reproduce it**, though Brave is Chromium-based.
 
 ## Live demo (test on a phone)
 
-Published to GitHub Pages over HTTPS — open on an Android phone in a Chromium browser:
+Published to GitHub Pages over HTTPS — open on an Android phone in Brave:
 
 <https://pauliojanpera.github.io/fullscreen-keyboard-repro/>
 
@@ -20,7 +20,12 @@ When the on-screen keyboard is dismissed, the browser reports a viewport shrunk 
 OS navigation bar *as if* the bar were there — a "phantom" navbar that isn't actually drawn. The shrink
 stays until the next touch (see below). `body`, sized to `100dvh`, faithfully shrinks with the stale
 value, so a strip of the **root canvas** (the page's default background) is exposed along the bottom
-edge. With a default white canvas this reads as a bright white bar. 
+edge. With a default white canvas this reads as a bright white bar.
+
+While the field is focused and the keyboard is up, `navigator.virtualKeyboard.boundingRect.height`
+stays at **0**, and the real height arrives only at dismissal — describing a keyboard that has just
+gone away. Chrome reports the height as soon as the keyboard is up, which is what lets the page tell
+the two apart: it tests on focus and applies the workaround only to browsers that fail. 
 
 Entering the stale state looks duration-sensitive: a long-press dismiss seems to avoid it. Leaving it
 is not. `innerHeight`, `visualViewport`, and `VirtualKeyboard.boundingRect` sit frozen at the stale
@@ -57,7 +62,8 @@ Two smaller, related quirks the HUD also exposes:
 ### An exit-FS / re-FS cycle sidesteps the strip — this is the **Workaround** toggle
 
 Observed on-device: if fullscreen and the open keyboard never overlap, the magenta strip stays away.
-That is exactly what the page's **Workaround** checkbox does:
+That is exactly what the page's **Workaround** checkbox does, on a browser the detector has caught
+withholding the keyboard geometry:
 
 1. Focusing the field **exits fullscreen**, so the keyboard opens in an ordinary (non-fullscreen)
    context where there is no phantom-navbar shrink to leak the canvas.
@@ -89,7 +95,7 @@ and **does not correct until a tap forces a reflow** that re-reads the top-contr
 ([w3tutorials write-up][w3t], Chromium [*Top Controls change layout viewport height*][tc],
 [Next.js #63724][next]). The trigger is the omnibox; the update is interaction-gated.
 
-This repro reproduces the *same* failure with the omnibox taken out of the picture. **Fullscreen has
+This repro shows the same shape of failure with the omnibox taken out of the picture. **Fullscreen has
 no top controls** — no URL bar, no toolbar, nothing at the top edge left to move. Yet dismissing the
 keyboard still produces a stale shrink of **exactly one navigation-bar height**, and it still refuses
 to recover until the next touch. The only chrome that can account for a navbar-height shrink here is
@@ -103,11 +109,6 @@ the **bottom OS navigation bar** returning in "phantom".
 | Surface symptom | Misplaced fixed elements, wrong `100vh` | `100dvh` container leaves a canvas strip at the bottom |
 | Escape | `visualViewport` API / `dvh` instead of `vh` | `100lvh`, or never overlap fullscreen + keyboard |
 
-So this is **not a second, unrelated bug**: it is the same interaction-gated viewport update, but the
-moving part has shifted from the omnibox to the navbar. Fullscreen is what makes that provable — by
-removing the omnibox it rules out the usual suspect and leaves the navigation bar as an independent
-trigger of the same class of bug. The omnibox variant is well documented; the **navbar framing is the
-part not separately reported**, and it is exactly what fullscreen isolates.
 
 [w3t]: https://www.w3tutorials.net/blog/why-is-window-innerheight-incorrect-until-i-tap-chrome-android/
 [tc]: https://issues.chromium.org/issues/40391415
@@ -131,13 +132,19 @@ The page is deliberately minimal — just enough to show the bug and one working
 - A **Workaround** checkbox — leaves fullscreen when the field is focused and re-enters it on `blur`
   (authorised by the dismiss gesture's transient activation), so fullscreen and the keyboard never
   overlap and the strip never appears.
-- A one-line readout of `innerHeight` + fullscreen state, so you can watch `innerHeight` sit frozen at
-  the stale value until the next touch.
+- A runtime detector gating that workaround. On focus in fullscreen it gives the browser 300 ms to
+  report a nonzero `virtualKeyboard.boundingRect.height`; silence means this browser withholds the
+  geometry, which is latched for the session. The verdict cannot wait for `blur` — the keyboard covers
+  the field for the whole focused period — so the offending focus is rescued in place by dropping
+  fullscreen the moment the deadline expires. Later focuses leave fullscreen up front.
+- A one-line readout of `innerHeight`, fullscreen state, the keyboard inset and the detector's verdict
+  (`geometryWithheld`), so you can watch `innerHeight` sit frozen at the stale value until the next
+  touch.
 
 ## How to run
 
 Serve over **HTTPS** or `http://localhost` (the Fullscreen API needs a secure context), open on an
-Android phone in a Chromium browser, then:
+Android phone in Brave, then:
 
 ```sh
 # any static server works, e.g.:
@@ -150,7 +157,10 @@ python3 -m http.server 8080
    until you touch again.
 4. Tick **Workaround** and repeat — the strip never appears.
 5. (Compare a **long-press** dismiss without the workaround — usually clean.)
+6. Repeat the whole thing in Chrome: `geometryWithheld` stays `false`, the page never leaves
+   fullscreen, and no strip appears.
 
 ## Environment where observed
 
-- Android, Chromium-based browser, fullscreen, 3-button navigation bar.
+- Android, Brave, fullscreen, 3-button navigation bar.
+- Chrome on the same device and Android version: not affected.

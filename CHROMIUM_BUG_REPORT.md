@@ -1,34 +1,38 @@
-# Bug report — draft for the Chromium issue tracker
+# Bug report — draft for the Brave issue tracker
 
-Paste-ready for <https://issues.chromium.org/new> (shortcut `crbug.com/new`). Fill in the
-**`<…>`** placeholders (device, versions) before filing. This is a **functional** viewport bug — file
-it on the normal tracker, **not** the security/VRP pipeline.
+Paste-ready for <https://github.com/brave/brave-browser/issues/new/choose>. Fill in the **`<…>`**
+placeholders (device, versions) before filing. This is a **functional** viewport bug — not a security
+report.
 
-Before filing: search the tracker and, if a matching issue exists, star + comment instead of opening a
-duplicate. The closest existing issues are [40391415 — *Top Controls change layout viewport height*](https://issues.chromium.org/issues/40391415)
-and [40924170 — *Popup soft keyboard sizing bug in Chrome on Android*](https://issues.chromium.org/issues/40924170);
-this report is deliberately framed as the **navigation-bar** counterpart to those (see “Relationship”).
+Chrome on the same device does not reproduce it, so this is filed against Brave rather than Chromium.
+Before filing: search the tracker and, if a matching issue exists, comment instead of opening a
+duplicate. The closest Chromium issues are [40391415 — *Top Controls change layout viewport
+height*](https://issues.chromium.org/issues/40391415) and [40924170 — *Popup soft keyboard sizing bug
+in Chrome on Android*](https://issues.chromium.org/issues/40924170); both concern the omnibox rather
+than the navigation bar (see “Relationship”).
 
 ---
 
 ## Title
 
-Fullscreen + `100dvh`: dismissing the on-screen keyboard leaves a stale, navbar-height viewport shrink that persists until the next touch
+Fullscreen + `100dvh`: dismissing the on-screen keyboard leaves a stale, navbar-height viewport shrink that persists until the next touch (Chrome unaffected)
 
 ## Summary
 
 In element-fullscreen on Android, dismissing the virtual keyboard shrinks the reported viewport by
 exactly one navigation-bar height and **keeps it shrunk until the next touch**. A top-level container
 sized to `100dvh` follows the stale value, exposing a persistent strip of the page canvas along the
-bottom edge. This is the same interaction-gated “viewport is stale until you tap” behaviour already
-reported for the **omnibox / top controls**, but here the omnibox is absent (fullscreen), so the
-**bottom OS navigation bar** is the moving part.
+bottom edge.
+
+While the keyboard is up, `navigator.virtualKeyboard.boundingRect.height` stays **0**; the real height
+is reported only at dismissal. Chrome reports it as soon as the keyboard is up, and shows no strip.
 
 ## Environment
 
 - Device: `<e.g. Pixel 7>`
 - OS: `<e.g. Android 16>`
-- Browser + version: `<e.g. Chrome 141.0.xxxx.xx>` (Chromium-based)
+- Browser + version: **Brave** `<e.g. 1.71.x (Chromium 141.0.xxxx.xx)>`
+- Control: **Chrome** `<e.g. 141.0.xxxx.xx>` on the same device — **not affected**
 - Navigation mode: **3-button navigation bar** (`<confirm; gesture nav may differ>`)
 - Not a PWA install — reproduced in an ordinary tab via the Fullscreen API.
 
@@ -39,9 +43,10 @@ reported for the **omnibox / top controls**, but here the omnibox is absent (ful
 Minimal, self-contained page (single HTML file, source:
 <https://github.com/pauliojanpera/fullscreen-keyboard-repro>). In fullscreen — the repro condition —
 the root canvas turns dark magenta, so any uncovered strip is unmistakable (while windowed it matches
-the bottom bar and an ordinary strip blends into the UI); a one-line readout shows `window.innerHeight`
-sitting frozen at the stale value until the next touch. A **Workaround** checkbox on the page toggles the mitigation
-described below.
+the bottom bar and an ordinary strip blends into the UI). A one-line readout shows `window.innerHeight`
+sitting frozen at the stale value until the next touch, and `geometryWithheld`, which latches `true`
+once the browser has been caught leaving `boundingRect.height` at 0 for a whole focused period. A
+**Workaround** checkbox toggles the mitigation described below.
 
 ## Steps to reproduce
 
@@ -49,14 +54,16 @@ described below.
 2. Tap **“Enter fullscreen”**.
 3. Tap the text field at the bottom → the on-screen keyboard opens.
 4. Dismiss the keyboard with a tap on the page body.
+5. Repeat in Chrome as a control.
 
 ## Expected
 
 After the keyboard is dismissed, the reported viewport returns to the full fullscreen height and the
-`100dvh` container covers the screen — no canvas strip.
+`100dvh` container covers the screen — no canvas strip. This is what Chrome does.
 
 ## Actual
 
+- `boundingRect.height` reads **0** for the whole time the keyboard is up; `geometryWithheld` latches.
 - A **magenta strip one navigation-bar tall** appears along the bottom and **stays there
   indefinitely**. It does not recover on its own.
 - `innerHeight`, `visualViewport.height` and `VirtualKeyboard.boundingRect` remain frozen at the
@@ -69,21 +76,26 @@ and no amount of waiting lets the page catch up.
 
 ## Root cause, as observed
 
-The single defect is: **the reported viewport metrics stay stale after the keyboard hides and only
-update on the next touch.** Everything visible is a consequence of that one thing — `100dvh` faithfully
-renders the stale height, the “phantom navbar” is the missing navbar-height difference, and fullscreen
-merely makes it visible as a canvas leak.
+Two facts, in the order they can be measured:
+
+1. The keyboard's geometry is reported **one interaction late** — zero while it is open, real at
+   dismissal.
+2. The reported viewport metrics then **stay stale after the keyboard hides and only update on the
+   next touch.**
+
+Everything visible follows from the second — `100dvh` faithfully renders the stale height, the
+“phantom navbar” is the missing navbar-height difference, and fullscreen merely makes it visible as a
+canvas leak.
 
 ## Relationship to existing reports
 
 Public write-ups of “`innerHeight` is wrong until you tap” attribute it to the **omnibox / top
-controls** (the URL bar / toolbar that hide and show on scroll) — e.g. issue 40391415 and the
-community write-ups. This report is the **same interaction-gated update with the omnibox removed**:
-fullscreen has no top controls, yet the identical stale shrink still occurs, of exactly navbar height.
-Fullscreen therefore isolates the **navigation bar** as an independent trigger of the same class of
-bug — the part that does not appear to be separately tracked.
+controls** (the URL bar / toolbar that hide and show on scroll) — e.g. issue 40391415. Those are
+reported against Chrome. This report has the omnibox removed (fullscreen has no top controls), a stale
+shrink of exactly navbar height, and a Chrome that behaves correctly. The navigation bar is therefore
+implicated as a separate trigger, and whatever Brave does differently from Chrome as the cause.
 
-| | Known reports (ordinary tab) | This report (fullscreen) |
+| | Known reports (ordinary tab, Chrome) | This report (fullscreen, Brave) |
 |---|---|---|
 | Moving chrome | Omnibox / top controls (top) | OS navigation bar (bottom) |
 | Stale `innerHeight`/`dvh` until next touch | Yes | Yes |
@@ -100,10 +112,10 @@ Observed across `interactive-widget` modes:
 
 ## Additional observations (possibly related)
 
-- In VirtualKeyboard overlay mode, `geometrychange` appears to fire **one interaction late** — on open
-  it still reports the closed geometry; the real height arrives at the next focus change.
 - `VirtualKeyboard.boundingRect.height` is measured from the layout-viewport bottom and **omits the
   navigation bar**, so it is short by the navbar height versus the OS IME window.
+- Outside fullscreen, with `resizes-visual`, focusing the field makes it pop up from under the keyboard
+  with a visible delay — the same interaction-gated lag, without the phantom navbar on top.
 
 ## Workarounds found (not fixes)
 
@@ -113,6 +125,11 @@ Observed across `interactive-widget` modes:
 - Never have fullscreen and the keyboard active at once: exit fullscreen when the field is focused and
   re-request it from the field’s `blur` (authorised by the dismiss gesture’s transient activation).
   **Only available when fullscreen was entered through the Fullscreen API** — see below.
+
+The repro applies the second one only to browsers that fail the geometry test, so Chrome stays
+fullscreen throughout. The verdict cannot wait for `blur`, since the keyboard covers the field for the
+whole focused period; the page gives the browser 300 ms from focus to report a nonzero height, then
+drops fullscreen mid-focus and latches for the session.
 
 ### The exit-fullscreen workaround does not exist in an installed `display: fullscreen` PWA
 

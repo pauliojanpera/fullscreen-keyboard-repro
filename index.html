@@ -108,7 +108,8 @@
   <h2>Workaround</h2>
   <p>
     <input type="checkbox" id="workaroundCheckbox" />
-    <span>Apply the workaround to exit fullscreen on focus, re-enter on blur.</span>
+    <span>Apply the workaround to exit fullscreen on focus, re-enter on blur — only on browsers caught
+      failing to report the keyboard's geometry.</span>
   </p>
   </p>
 
@@ -154,14 +155,37 @@
     fullscreenDisplayModeQuery.addEventListener('change', reflectFullscreenState);
     reflectFullscreenState();
 
-    // Workaround: keep fullscreen and the keyboard from ever overlapping.
+    // Detect the defect rather than assume it: a healthy browser reports the keyboard's geometry while
+    // the field is focused, a broken one leaves boundingRect at zero until the dismissal. The verdict
+    // cannot wait for blur — the keyboard masks the field for that whole time — so it is taken on a
+    // deadline, and the offending focus is rescued in place by dropping fullscreen right then. Once
+    // latched, later focuses leave fullscreen up front, before the keyboard opens at all.
+    const KEYBOARD_GEOMETRY_DEADLINE_MS = 300;
+    const keyboardInsetHeight = () =>
+      virtualKeyboard && virtualKeyboard.boundingRect ? virtualKeyboard.boundingRect.height : 0;
+    let browserWithholdsKeyboardGeometry = false;
+    let keyboardGeometryDeadline = 0;
+
+    // Workaround: keep fullscreen and the keyboard from ever overlapping, on browsers that need it.
     let wasFullscreenOnFocus = false;
     bottomBarTextInput.addEventListener('focus', () => {
       wasFullscreenOnFocus = !!document.fullscreenElement;
+      if (!wasFullscreenOnFocus) return;
       // keyboard opens outside fullscreen — no phantom-navbar strip
-      if (workaroundCheckbox.checked && wasFullscreenOnFocus) exitFullscreen();
+      if (browserWithholdsKeyboardGeometry) {
+        if (workaroundCheckbox.checked) exitFullscreen();
+        return;
+      }
+      // A missing VirtualKeyboard API, or a hardware keyboard, also reports nothing. Neither is this bug.
+      if (!virtualKeyboard) return;
+      keyboardGeometryDeadline = setTimeout(() => {
+        if (document.activeElement !== bottomBarTextInput || keyboardInsetHeight() > 0) return;
+        browserWithholdsKeyboardGeometry = true;
+        if (workaroundCheckbox.checked) exitFullscreen();
+      }, KEYBOARD_GEOMETRY_DEADLINE_MS);
     });
     bottomBarTextInput.addEventListener('blur', () => {
+      clearTimeout(keyboardGeometryDeadline);
       // blur fires on time; the dismiss gesture's transient activation still authorises requestFullscreen.
       const hasTransientActivation = !navigator.userActivation || navigator.userActivation.isActive;
       if (workaroundCheckbox.checked && wasFullscreenOnFocus && !document.fullscreenElement && hasTransientActivation) {
@@ -173,14 +197,13 @@
     // Minimal readout: innerHeight stays frozen at the stale value until you touch the screen again.
     const viewportStatusReadout = document.getElementById('debug-status-display');
     (function updateBarAndReadout() {
-      const keyboardInsetHeight =
-        virtualKeyboard && virtualKeyboard.boundingRect ? virtualKeyboard.boundingRect.height : 0;
       // Keep the bar's own height available to body's bottom padding.
       documentRootElement.style.setProperty('--bottom-bar-height', bottomBarElement.offsetHeight + 'px');
       viewportStatusReadout.textContent =
         'innerHeight=' + window.innerHeight + ', fullscreen=' + !!document.fullscreenElement
         + ', displayModeFullscreen=' + fullscreenDisplayModeQuery.matches
-        + ', vkInset=' + keyboardInsetHeight;
+        + ', vkInset=' + keyboardInsetHeight()
+        + ', geometryWithheld=' + browserWithholdsKeyboardGeometry;
       requestAnimationFrame(updateBarAndReadout);
     })();
   </script>
