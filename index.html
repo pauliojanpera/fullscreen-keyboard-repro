@@ -65,6 +65,14 @@
       The canvas behind the app matches this bar while windowed, so a normal strip blends in. In
       fullscreen it turns <b>dark magenta</b>: if you ever see that colour, you have met the bug.
     </p>
+    <div class="opt">
+      <b>Calibration</b>: in fullscreen, type into the phone field and dismiss the keyboard. The app
+      reads the OS navigation-bar height from the resulting viewport shrink and remembers it per
+      orientation — that is the height <code>env(keyboard-inset-height)</code> omits, added back to
+      the bar lift in <code>overlays-content</code>.
+      <input id="phone" type="tel" inputmode="tel" placeholder="Phone number — keyboard opens" />
+      <span id="cal">navbar: not calibrated</span>
+    </div>
     <button id="fs">Enter fullscreen</button>
     <label>
       <b>interactive-widget</b>: how the keyboard affects the viewport. The strip shows in
@@ -90,15 +98,7 @@
     <div class="opt">
       <input type="checkbox" id="wa" />
       <b>Workaround</b>: never keep fullscreen and the keyboard open at once — leave fullscreen on
-      focus, re-enter on blur (authorised by the dismiss tap). With this on, the strip never appears.
-    </div>
-    <div class="opt">
-      <b>Calibration</b>: in fullscreen, type into the phone field and dismiss the keyboard. The app
-      reads the OS navigation-bar height from the resulting viewport shrink and remembers it per
-      orientation — that is the height <code>env(keyboard-inset-height)</code> omits, added back to
-      the bar lift in <code>overlays-content</code>.
-      <input id="phone" type="tel" inputmode="tel" placeholder="Phone number — keyboard opens" />
-      <span id="cal">navbar: not calibrated</span>
+      focus, re-enter on blur. With this on, the strip never appears.
     </div>
     <pre id="hud"></pre>
   </div>
