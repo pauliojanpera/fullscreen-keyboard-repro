@@ -46,10 +46,9 @@ described below.
 ## Steps to reproduce
 
 1. Open the live URL on the device above.
-2. Tap **“Enter fullscreen (API)”**.
+2. Tap **“Enter fullscreen”**.
 3. Tap the text field at the bottom → the on-screen keyboard opens.
-4. Dismiss the keyboard with a **short tap** on the card area.
-5. Do **not** touch the screen afterwards; watch the bottom edge and the HUD.
+4. Dismiss the keyboard with a tap on the page body.
 
 ## Expected
 
@@ -64,8 +63,9 @@ After the keyboard is dismissed, the reported viewport returns to the full fulls
   stale (shrunk) value in the HUD for as long as you wait.
 - The very next real touch anywhere snaps all of them to the correct values and the strip disappears.
 
-So the update is **interaction-gated, not time-based** — no amount of waiting lets the page catch up.
-Dismissing with a **long press** instead of a quick tap usually avoids the strip.
+Entering the stale state looks duration-sensitive: dismissing with a **long press** instead of a tap
+seems to avoid the strip. Leaving it is not — the recovery is **interaction-gated, not time-based**,
+and no amount of waiting lets the page catch up.
 
 ## Root cause, as observed
 
@@ -91,8 +91,7 @@ bug — the part that does not appear to be separately tracked.
 
 ## `interactive-widget` mode dependence
 
-Observed across `interactive-widget` modes (a fuller earlier build of the repro flipped these live;
-see git history):
+Observed across `interactive-widget` modes:
 
 - The strip appears in **`resizes-visual`** (default) and **`overlays-content`**.
 - It does **not** appear in **`resizes-content`** — but there the fixed `bottom: 0` bar instead sits
@@ -109,9 +108,29 @@ see git history):
 ## Workarounds found (not fixes)
 
 - Size the container to **`100lvh`** (large viewport) instead of `100dvh`: it always covers the
-  physical screen, so the stale shrink cannot expose the canvas.
+  physical screen, so the stale shrink cannot expose the canvas. Pure CSS, so it applies everywhere the
+  bug does.
 - Never have fullscreen and the keyboard active at once: exit fullscreen when the field is focused and
   re-request it from the field’s `blur` (authorised by the dismiss gesture’s transient activation).
+  **Only available when fullscreen was entered through the Fullscreen API** — see below.
+
+### The exit-fullscreen workaround does not exist in an installed `display: fullscreen` PWA
+
+A web app installed from a manifest declaring `"display": "fullscreen"` is fullscreen as a *window
+presentation mode*, not as Fullscreen-API state. Consequently:
+
+- `document.fullscreenElement` is `null`, even though the app fills the screen and the bug reproduces.
+- `document.exitFullscreen()` operates on the fullscreen element stack; with that stack empty it
+  rejects and changes nothing.
+- No API exists for leaving a manifest display mode.
+
+So the app cannot drop out of fullscreen for the duration of the keyboard, and the workaround has
+nothing to act on. The stale-viewport strip is then **unavoidable** except via `100lvh` — in precisely
+the configuration a shipped fullscreen web app runs in. This raises the practical severity of the bug
+beyond what the ordinary-tab reproduction suggests.
+
+The reproduction linked above therefore ships `"display": "standalone"`, so that installing it and
+tapping **Enter fullscreen** exercises the same Fullscreen-API path as a tab.
 
 ## Disclosure
 

@@ -18,7 +18,7 @@
       background: #223247;
     }
 
-    html.fs {
+    html.fullscreen {
       background: #3d0a2e;
     }
 
@@ -100,10 +100,8 @@
   <ol id="steps">
     <li>Tap <b>Enter fullscreen</b>, tap the bottom field, dismiss with a tap.</li>
     <li>Magenta at the bottom = the bug. Tick <b>Workaround</b> and repeat.</li>
-    <li>Or install to the home screen and launch from the icon: the manifest asks for
-      <code>display: fullscreen</code>, so step 1's button is unnecessary.</li>
   </ol>
-  <button id="fs">Enter fullscreen</button>
+  <button id="fullscreen">Enter fullscreen</button>
   </p>
 
   <p>
@@ -126,7 +124,7 @@
     const enterFullscreen = () => documentRootElement.requestFullscreen?.().catch(() => { });
     const exitFullscreen = () => document.exitFullscreen?.().catch(() => { });
 
-    const fullscreenToggleButton = document.getElementById('fs');
+    const fullscreenToggleButton = document.getElementById('fullscreen');
     fullscreenToggleButton.addEventListener('click', () => {
       document.fullscreenElement ? exitFullscreen() : enterFullscreen();
     });
@@ -148,7 +146,7 @@
     // from, and label the button with the action it will perform (Enter vs Exit). The label tracks
     // the API alone, since that is the only layer the button controls.
     const reflectFullscreenState = () => {
-      documentRootElement.classList.toggle('fs', isDisplayedFullscreen());
+      documentRootElement.classList.toggle('fullscreen', isDisplayedFullscreen());
       fullscreenToggleButton.textContent =
         document.fullscreenElement ? 'Exit fullscreen' : 'Enter fullscreen';
     };

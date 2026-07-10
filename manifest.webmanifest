@@ -3,7 +3,7 @@
   "short_name": "KbRepro",
   "start_url": "./",
   "scope": "./",
-  "display": "fullscreen",
+  "display": "standalone",
   "orientation": "portrait",
   "background_color": "#101820",
   "theme_color": "#101820",

@@ -10,26 +10,22 @@ Published to GitHub Pages over HTTPS — open on an Android phone in a Chromium 
 
 <https://pauliojanpera.github.io/fullscreen-keyboard-repro/>
 
-The page is a plain `<div>` in the light DOM. (An earlier custom-element / shadow-DOM build behaved
-identically, ruling custom elements out as a factor in the bug, so only the plain page is kept.)
-
 The site is deployed by the `Deploy to GitHub Pages` workflow (`.github/workflows/deploy-pages.yml`)
 on every push to `master`. Pages source is **GitHub Actions** (Settings → Pages), and the repo is
 public so Pages is available on the free plan.
 
 ## Symptom
 
-When the on-screen keyboard is dismissed (especially with a quick tap), the browser reports a viewport
-shrunk by the height of the OS navigation bar *as if* the bar were there — a "phantom" navbar that
-isn't actually drawn. This is **not a flicker**: the shrink stays put indefinitely, and the exposed
-area does **not** recover on its own — it sits there until the next touch (see below). The `100dvh`
-container faithfully shrinks with the stale value, so a strip of the **root canvas** (the page's
-default background) is exposed along the bottom edge and stays exposed. With a default white canvas
-this reads as a bright white bar. Dismissing with a **long press** usually avoids it.
+When the on-screen keyboard is dismissed, the browser reports a viewport shrunk by the height of the
+OS navigation bar *as if* the bar were there — a "phantom" navbar that isn't actually drawn. The shrink
+stays until the next touch (see below). `body`, sized to `100dvh`, faithfully shrinks with the stale
+value, so a strip of the **root canvas** (the page's default background) is exposed along the bottom
+edge. With a default white canvas this reads as a bright white bar. 
 
-The underlying viewport update is **interaction-gated, not time-based**: `innerHeight`,
-`visualViewport`, and `VirtualKeyboard.boundingRect` sit frozen at the stale value for as long as you
-wait, then snap only on the next real touch. So no amount of waiting lets the page "catch up".
+Entering the stale state looks duration-sensitive: a long-press dismiss seems to avoid it. Leaving it
+is not. `innerHeight`, `visualViewport`, and `VirtualKeyboard.boundingRect` sit frozen at the stale
+value for as long as you wait, then snap only on the next real touch — the recovery is
+**interaction-gated, not time-based**, and no amount of waiting lets the page "catch up".
 
 ### `interactive-widget` mode matters
 
@@ -75,9 +71,12 @@ silently when it can't (e.g. a dismissal via the keyboard's own hide button or t
 gesture, which deliver no activation).
 
 So fullscreen is only ever active while the keyboard is closed, and the phantom-navbar shrink never
-coincides with `fullscreen + 100dvh` — which is exactly why the strip stays away. This targets the
-actual trigger (fullscreen and the keyboard being up at the same time) instead of papering over the
-symptom, so it is a genuine mitigation.
+coincides with `fullscreen + 100dvh`.
+
+This mitigation is unavailable in a web app installed from a manifest declaring
+`"display": "fullscreen"`: there the fullscreen is a window presentation mode rather than
+Fullscreen-API state, `document.fullscreenElement` is `null`, and nothing can leave it. The
+manifest here therefore declares `"display": "standalone"`.
 
 ## The same bug, a different moving part: omnibox vs. navbar
 
@@ -118,10 +117,11 @@ part not separately reported**, and it is exactly what fullscreen isolates.
 
 The page is deliberately minimal — just enough to show the bug and one working around of it:
 
-- A plain `<div>` container sized to `100dvh` with an opaque dark background. The **root canvas is
-  state-coded**: while windowed it matches the bottom bar, so an ordinary uncovered strip blends into
-  the UI; in fullscreen — the bug's condition — it turns **dark magenta**. So if you ever see that
-  colour, you have met the bug.
+- `body` sized to `100dvh` with an opaque dark background, painted on its own box because `html`
+  declares one. The **root canvas** (`html`) is therefore what shows through wherever `body` fails to
+  cover, and it is **state-coded**: while windowed it matches the bottom bar, so an ordinary uncovered
+  strip blends into the UI; in fullscreen — the bug's condition — it turns **dark magenta**. So if you
+  ever see that colour, you have met the bug.
 - A fixed bottom bar with a text input (the thing that must ride above the keyboard).
 - **Enter / Exit fullscreen** button (the trigger; its label reflects the action it will perform; no
   install needed).
@@ -146,8 +146,8 @@ python3 -m http.server 8080
 
 1. Tap **Enter fullscreen**.
 2. Tap the input → keyboard opens.
-3. Dismiss with a **short tap** on the container → the magenta strip appears and stays; `innerHeight`
-   sits frozen until you touch again.
+3. Dismiss it by tapping the page body → the magenta strip appears and stays; `innerHeight` sits frozen
+   until you touch again.
 4. Tick **Workaround** and repeat — the strip never appears.
 5. (Compare a **long-press** dismiss without the workaround — usually clean.)
 
